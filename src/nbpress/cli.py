@@ -30,10 +30,35 @@ from nbpress.parser import load_notebook
 app = typer.Typer(
     name="nbpress",
     help="Transform Jupyter Notebooks (.ipynb) into editorial-grade, print-ready PDFs.",
-    no_args_is_help=True,
+    no_args_is_help=False,
     add_completion=False,
 )
 console = Console(highlight=False)
+
+
+@app.callback(invoke_without_command=True)
+def main_callback(
+    ctx: typer.Context,
+    wizard: bool = typer.Option(
+        False,
+        "--wizard",
+        "-w",
+        help="Iniciar el asistente interactivo Slide-Printer Wizard 4.2.0",
+    ),
+):
+    """
+    Transforma cuadernos Jupyter (.ipynb) en documentos y diapositivas de alta calidad editorial.
+    """
+    if ctx.invoked_subcommand is None:
+        from nbpress.wizard import run_wizard
+        run_wizard()
+
+
+@app.command(name="wizard")
+def wizard_cmd():
+    """Iniciar el asistente interactivo Slide-Printer Wizard 4.2.0."""
+    from nbpress.wizard import run_wizard
+    run_wizard()
 
 
 @app.command(name="version")

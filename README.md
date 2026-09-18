@@ -38,7 +38,28 @@ Powered by the lightning-fast, high-precision **Typst** typesetting engine.
 pip install nbpress
 ```
 
-### Basic CLI Usage
+### Interactive Slide-Printer Wizard 4.2.0 🧙
+
+Launch the interactive guided terminal wizard simply by running:
+
+```bash
+nbpress
+# or explicitly
+nbpress wizard
+```
+
+The wizard guides you through:
+1. **Notebook Discovery**: Automatically detects notebooks in current and sub-directories or accepts manual drag-and-drop paths.
+2. **Deep Inspection**: Displays title, cell statistics, figures, tables, and detected slide boundaries.
+3. **Layout Selection**: Easily switch between `document`, `slides`, `handout` and `cheatsheet`.
+4. **Print Geometry & Eco**: Select paper sizes (A4, Letter, A5), binding gutter (for spiral/ring binders), and ink-saving mode.
+5. **Pre-Flight Manifest**: Live preview of compilation parameters before running.
+6. **Native Typst Compilation**: Live status spinner and sub-second generation.
+7. **Post-Build Actions**: Immediately open in default system PDF viewer, reveal in File Explorer, or convert another notebook.
+
+---
+
+### Command-Line Usage (Non-Interactive)
 
 ```bash
 # Compile a notebook into an editorial document
@@ -55,6 +76,9 @@ nbpress build machine_learning.ipynb -o summary.pdf --layout cheatsheet --eco
 
 # Inspect notebook metadata, cell counts, outputs, and slide markers
 nbpress info analysis.ipynb
+
+# Preview directly in default PDF viewer
+nbpress preview analysis.ipynb --layout handout
 ```
 
 ---
