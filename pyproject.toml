@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nbpress"
+version = "0.1.0"
+description = "Transform Jupyter Notebooks (.ipynb) into editorial-grade, print-ready PDFs and handouts."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "nbpress contributors" }
+]
+keywords = ["jupyter", "notebook", "pdf", "typst", "print", "handout", "cheatsheet", "editorial"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Text Processing :: Markup",
+]
+dependencies = [
+    "nbformat>=5.9.0",
+    "typst>=0.14.0",
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+    "pydantic>=2.5.0",
+    "jinja2>=3.1.0",
+    "beautifulsoup4>=4.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "pandas>=2.0.0",
+    "matplotlib>=3.8.0",
+]
+
+[project.scripts]
+nbpress = "nbpress.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nbpress"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
