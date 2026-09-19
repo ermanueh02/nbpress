@@ -36,9 +36,31 @@ app = typer.Typer(
 console = Console(highlight=False)
 
 
+def version_callback(value: bool):
+    if value:
+        typst_ver = getattr(typst, "__version__", "0.15.0")
+        console.print(
+            Panel(
+                f"[bold cyan]nbpress[/bold cyan] versión [green]{__version__}[/green]\n"
+                f"[bold cyan]Typst Engine[/bold cyan] versión [green]{typst_ver}[/green]",
+                title="📖 Información de Versión",
+                border_style="blue",
+            )
+        )
+        raise typer.Exit()
+
+
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
+    version: Optional[bool] = typer.Option(
+        None,
+        "--version",
+        "-v",
+        help="Mostrar la versión de nbpress y el motor Typst.",
+        callback=version_callback,
+        is_eager=True,
+    ),
     wizard: bool = typer.Option(
         False,
         "--wizard",
