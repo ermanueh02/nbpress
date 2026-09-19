@@ -71,6 +71,9 @@ def main_callback(
     """
     Transforma cuadernos Jupyter (.ipynb) en documentos y diapositivas de alta calidad editorial.
     """
+    from nbpress.deps import ensure_slide_printer
+    ensure_slide_printer(console)
+
     if ctx.invoked_subcommand is None:
         from nbpress.wizard import run_wizard
         run_wizard()
@@ -79,6 +82,8 @@ def main_callback(
 @app.command(name="wizard")
 def wizard_cmd():
     """Iniciar el asistente interactivo Slide-Printer Wizard 4.2.0."""
+    from nbpress.deps import ensure_slide_printer
+    ensure_slide_printer(console)
     from nbpress.wizard import run_wizard
     run_wizard()
 

@@ -113,11 +113,14 @@ def build_slides_list(
     current_title = notebook.title
     current_items: List[str] = []
 
+    def _sanitize(t: str) -> str:
+        return t.replace("[", r"\[").replace("]", r"\]")
+
     for cell in notebook.cells:
         is_new = cell.is_slide_starter
         if is_new and current_items:
             slides.append({
-                "title": current_title,
+                "title": _sanitize(current_title),
                 "content": "\n#v(6pt)\n".join(current_items),
             })
             current_items = []
@@ -132,13 +135,13 @@ def build_slides_list(
 
     if current_items:
         slides.append({
-            "title": current_title,
+            "title": _sanitize(current_title),
             "content": "\n#v(6pt)\n".join(current_items),
         })
 
     if not slides:
         slides.append({
-            "title": notebook.title,
+            "title": _sanitize(notebook.title),
             "content": "El cuaderno no contiene celdas ejecutables.",
         })
 

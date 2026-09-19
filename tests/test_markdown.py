@@ -21,6 +21,12 @@ def test_process_inline_markdown():
     assert "$x > 0$" in res
     assert "$y = alpha + beta$" in res
 
+    # Literal square brackets escaping
+    raw_brackets = "preserva unitariedad (ver extensión] en rango [0, 1]."
+    escaped = process_inline_markdown(raw_brackets)
+    assert r"\[0, 1\]" in escaped
+    assert r"extensión\]" in escaped
+
 
 def test_markdown_to_typst_headings():
     source = """# Titulo Principal

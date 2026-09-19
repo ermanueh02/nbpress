@@ -101,19 +101,24 @@ def process_inline_markdown(text: str) -> str:
         text = text.replace(f"@@@BOLD_TOKEN_{i}@@@", token)
 
     # Images in markdown: ![alt](url) -> MUST be processed BEFORE [label](url)
+    img_tokens = []
     def render_md_img(match: re.Match) -> str:
+        idx = len(img_tokens)
         alt = match.group(1).strip()
         url = match.group(2).strip()
         url = url.strip('"\'')
         if alt:
             clean_alt = process_inline_markdown(alt)
-            return f'#nb-image("{url}", caption: [{clean_alt}])'
-        return f'#nb-image("{url}")'
+            img_tokens.append(f'#nb-image("{url}", caption: [{clean_alt}])')
+        else:
+            img_tokens.append(f'#nb-image("{url}")')
+        return f"@@@IMG_TOKEN_{idx}@@@"
 
     text = re.sub(r"!\[(.*?)\]\((.*?)\)", render_md_img, text)
 
     # HTML <img ...> tags
     def render_html_img(match: re.Match) -> str:
+        idx = len(img_tokens)
         tag = match.group(0)
         src_m = re.search(r'src=["\']([^"\']+)["\']', tag, re.IGNORECASE)
         if not src_m:
@@ -126,7 +131,8 @@ def process_inline_markdown(text: str) -> str:
             if not w_val.endswith("%") and not w_val.endswith("pt"):
                 w_val = f"{w_val}pt"
             width_arg = f", width: {w_val}"
-        return f'#nb-image("{url}"{width_arg})'
+        img_tokens.append(f'#nb-image("{url}"{width_arg})')
+        return f"@@@IMG_TOKEN_{idx}@@@"
 
     text = re.sub(r"<img\s+[^>]*>", render_html_img, text, flags=re.IGNORECASE)
 
@@ -134,10 +140,25 @@ def process_inline_markdown(text: str) -> str:
     text = re.sub(r"<\/?(div|center|span|font|p|section|article)[^>]*>", "", text, flags=re.IGNORECASE)
 
     # Strikethrough ~~text~~
-    text = re.sub(r"~~([^~]+)~~", r"#strike[\1]", text)
+    strike_tokens = []
+    def save_strike(match: re.Match) -> str:
+        idx = len(strike_tokens)
+        strike_tokens.append(f"#strike[{match.group(1)}]")
+        return f"@@@STRIKE_TOKEN_{idx}@@@"
+
+    text = re.sub(r"~~([^~]+)~~", save_strike, text)
 
     # Links [label](url)
-    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'#link("\2")[\1]', text)
+    link_tokens = []
+    def render_link(match: re.Match) -> str:
+        idx = len(link_tokens)
+        label = match.group(1)
+        url = match.group(2).strip().strip('"\'')
+        clean_label = process_inline_markdown(label)
+        link_tokens.append(f'#link("{url}")[{clean_label}]')
+        return f"@@@LINK_TOKEN_{idx}@@@"
+
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", render_link, text)
 
     # Clean simple HTML formatting tags
     text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
@@ -147,6 +168,19 @@ def process_inline_markdown(text: str) -> str:
     text = re.sub(r"<i>(.*?)</i>", r"_\1_", text, flags=re.IGNORECASE)
     text = re.sub(r"<em>(.*?)</em>", r"_\1_", text, flags=re.IGNORECASE)
     text = re.sub(r"<code>(.*?)</code>", r"`\1`", text, flags=re.IGNORECASE)
+
+    # Escape any unparsed literal square brackets in plain text so they do not break Typst content blocks [...]
+    text = text.replace("[", r"\[").replace("]", r"\]")
+
+    # Restore tokens in reverse order
+    for i, token in enumerate(link_tokens):
+        text = text.replace(f"@@@LINK_TOKEN_{i}@@@", token)
+
+    for i, token in enumerate(strike_tokens):
+        text = text.replace(f"@@@STRIKE_TOKEN_{i}@@@", token)
+
+    for i, token in enumerate(img_tokens):
+        text = text.replace(f"@@@IMG_TOKEN_{i}@@@", token)
 
     # Restore inline code tokens
     for i, token in enumerate(code_tokens):

@@ -77,16 +77,16 @@ MATH_SYMBOLS = {
     r"\oplus": " plus.o ",
     r"\otimes": " times.o ",
     r"\odot": " dot.o ",
-    r"\hbar": " planck.reduce ",
+    r"\hbar": " h.bar ",
     r"\ell": " ell ",
     r"\in": " in ",
     r"\notin": " in.not ",
     r"\subset": " subset ",
     r"\subseteq": " subset.eq ",
     r"\cup": " union ",
-    r"\cap": " sect ",
+    r"\cap": " inter ",
     r"\infty": " infinity ",
-    r"\partial": " diff ",
+    r"\partial": " partial ",
     r"\nabla": " nabla ",
     r"\forall": " forall ",
     r"\exists": " exists ",
@@ -175,6 +175,20 @@ def convert_roots(text: str) -> str:
     return text
 
 
+def convert_boxed(text: str) -> str:
+    """Convert \\boxed{expr} to rect(expr), supporting nested braces."""
+    while r"\boxed" in text:
+        idx = text.find(r"\boxed")
+        first_brace = text.find("{", idx)
+        if first_brace == -1 or first_brace > idx + 8:
+            break
+        body, end_pos = extract_balanced_group(text, first_brace)
+        body_converted = convert_boxed(body)
+        replacement = f"rect({body_converted})"
+        text = text[:idx] + replacement + text[end_pos:]
+    return text
+
+
 def convert_matrices(text: str) -> str:
     """Convert LaTeX matrix environments to Typst mat(...)."""
     def matrix_replacer(match: re.Match) -> str:
@@ -222,13 +236,19 @@ def latex_to_typst_math(latex: str, is_block: bool = False) -> str:
     elif expr.startswith("$") and expr.endswith("$"):
         expr = expr[1:-1].strip()
 
-    # Convert text environments
-    expr = re.sub(r"\\text\{([^}]+)\}", r'"\1"', expr)
+    # Convert text and style environments
+    expr = re.sub(r"\\text(normal)?\{([^}]+)\}", r'"\2"', expr)
     expr = re.sub(r"\\mathrm\{([^}]+)\}", r'"\1"', expr)
-    expr = re.sub(r"\\mathbf\{([^}]+)\}", r"bold(\1)", expr)
+    expr = re.sub(r"\\(mathbf|boldsymbol|bm)\{([^}]+)\}", r"bold(\2)", expr)
     expr = re.sub(r"\\mathit\{([^}]+)\}", r"italic(\1)", expr)
     expr = re.sub(r"\\mathbb\{([A-Za-z]+)\}", r"bb(\1)", expr)
     expr = re.sub(r"\\mathcal\{([A-Za-z]+)\}", r"cal(\1)", expr)
+    expr = re.sub(r"\\underline\{([^}]+)\}", r"underline(\1)", expr)
+    expr = re.sub(r"\\overline\{([^}]+)\}", r"overline(\1)", expr)
+    expr = re.sub(r"\\cancel\{([^}]+)\}", r"cancel(\1)", expr)
+
+    # Boxed equations
+    expr = convert_boxed(expr)
 
     # Matrices
     expr = convert_matrices(expr)
@@ -275,16 +295,6 @@ def latex_to_typst_math(latex: str, is_block: bool = False) -> str:
     # Leading superscripts or subscripts without base (e.g. ^{238}U -> ""^{238} U)
     expr = re.sub(r"(^|[\s(\[{=])(\^|_)", r'\1""\2', expr)
 
-    # Separate adjacent single-letter particle symbols (e.g. ep -> e p, pp -> p p, ee -> e e)
-    valid_2letter = {"in", "to", "pi", "mu", "xi", "nu", "ln", "bb", "eq", "ne", "lt", "gt", "le", "ge", "or", "im", "re"}
-    def split_unknown_2letter(m: re.Match) -> str:
-        word = m.group(0)
-        if word in valid_2letter:
-            return word
-        return f"{word[0]} {word[1]}"
-
-    expr = re.sub(r"\b[a-zA-Z]{2}\b", split_unknown_2letter, expr)
-
     # Accents with spacing when attached to characters
     expr = re.sub(r"(?<=[a-zA-Z0-9])\\bar\{([^{}]+)\}", r" macron(\1)", expr)
     expr = re.sub(r"\\bar\{([^{}]+)\}", r"macron(\1)", expr)
@@ -300,6 +310,60 @@ def latex_to_typst_math(latex: str, is_block: bool = False) -> str:
     # Replace remaining simple curly braces around sub/superscripts e.g. x^{2} -> x^2, x_{ij} -> x_(ij)
     expr = re.sub(r"\^\{([^{}]+)\}", r"^(\1)", expr)
     expr = re.sub(r"_\{([^{}]+)\}", r"_(\1)", expr)
+
+    # Protect quoted strings from word splitting
+    str_tokens = []
+    def save_str(m: re.Match) -> str:
+        idx = len(str_tokens)
+        str_tokens.append(m.group(0))
+        return f"__MATHSTR_{idx}__"
+
+    expr = re.sub(r'"[^"]*"', save_str, expr)
+
+    # Separate adjacent single-letter symbols and indices (e.g. ep -> e p, ijk -> i j k, pp -> p p, ip_k -> i p_k)
+    valid_math_words = {
+        # Token placeholder
+        "MATHSTR",
+        # Greek letters (lowercase)
+        "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta",
+        "iota", "kappa", "lambda", "mu", "nu", "xi", "omicron", "pi", "rho",
+        "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega",
+        # Greek letters (uppercase)
+        "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi", "Sigma", "Upsilon",
+        "Phi", "Psi", "Omega",
+        # Math operators and functions
+        "sin", "cos", "tan", "cot", "sec", "csc",
+        "arcsin", "arccos", "arctan", "arccot", "arcsec", "arccsc",
+        "sinh", "cosh", "tanh", "coth", "sech", "csch",
+        "exp", "log", "ln", "lg", "det", "dim", "gcd", "lcm", "hom", "ker",
+        "deg", "arg", "min", "max", "sup", "inf", "lim", "mod",
+        "integral", "sum", "product",
+        # Structure and styling
+        "bold", "italic", "rect", "sqrt", "root", "mat", "vec", "arrow",
+        "hat", "macron", "tilde", "dot", "cancel", "underline", "overline",
+        "bb", "cal", "frak", "mono", "sans", "display", "inline", "script",
+        # Symbols & relations
+        "times", "plus", "minus", "div", "approx", "equiv", "nabla", "partial",
+        "dif", "dagger", "star", "inter", "union", "subset", "in", "to",
+        "infinity", "dots", "forall", "exists", "not", "chevron", "prime",
+        "parallel", "prop", "bot", "top", "vert", "delim", "cases",
+        # Modifiers
+        "alt", "double", "bar", "reduce",
+        # Logic / relations
+        "eq", "ne", "lt", "gt", "le", "ge", "or", "and", "xor", "im", "re"
+    }
+
+    def split_unknown_words(m: re.Match) -> str:
+        word = m.group(0)
+        if word in valid_math_words:
+            return word
+        return " ".join(list(word))
+
+    expr = re.sub(r"(?<![a-zA-Z])[a-zA-Z]{2,}(?![a-zA-Z])", split_unknown_words, expr)
+
+    # Restore quoted strings
+    for i, token in enumerate(str_tokens):
+        expr = expr.replace(f"__MATHSTR_{i}__", token)
 
     # Spaces & LaTeX horizontal spacing
     expr = re.sub(r"\\[,; ]", " ", expr)

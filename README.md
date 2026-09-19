@@ -36,6 +36,8 @@ Powered by the lightning-fast, high-precision **Typst** typesetting engine.
 
 ```bash
 pip install nbpress
+# slide-printer requirement is resolved automatically from git:
+# git+https://github.com/ermanueh02/Slide-printer.git
 ```
 
 ### Interactive Slide-Printer Wizard 4.2.0 🧙

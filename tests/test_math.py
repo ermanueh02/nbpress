@@ -45,3 +45,13 @@ def test_latex_to_typst_math():
     # Bold vectors/matrices
     bold_vec = latex_to_typst_math(r"\mathbf{X}^T \mathbf{X}")
     assert "bold(X)^T" in bold_vec
+
+    # Partials, boxed equations and Planck constant
+    physics = latex_to_typst_math(r"\partial_\mu j^\mu = 0, \hbar, \boxed{E = mc^2}")
+    assert "partial" in physics
+    assert "h.bar" in physics
+    assert "rect(" in physics
+
+    # Multi-letter indices
+    indices = latex_to_typst_math(r"\epsilon_{ijk}")
+    assert "_(i j k)" in indices
