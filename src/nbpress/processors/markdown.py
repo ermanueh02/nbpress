@@ -106,7 +106,7 @@ def process_inline_markdown(text: str) -> str:
         idx = len(img_tokens)
         alt = match.group(1).strip()
         url = match.group(2).strip()
-        url = url.strip('"\'')
+        url = url.strip('"\'').replace("\\", "/")
         if alt:
             clean_alt = process_inline_markdown(alt)
             img_tokens.append(f'#nb-image("{url}", caption: [{clean_alt}])')
@@ -123,7 +123,7 @@ def process_inline_markdown(text: str) -> str:
         src_m = re.search(r'src=["\']([^"\']+)["\']', tag, re.IGNORECASE)
         if not src_m:
             return ""
-        url = src_m.group(1).strip()
+        url = src_m.group(1).strip().strip('"\'').replace("\\", "/")
         width_m = re.search(r'width\s*=\s*["\']?(\d+%?|\d+px)["\']?', tag, re.IGNORECASE)
         width_arg = ""
         if width_m:
@@ -212,6 +212,20 @@ def markdown_to_typst(source: str) -> str:
         return f"@@@DISPLAY_MATH_TOKEN_{idx}@@@"
 
     source = re.sub(r"\$\$(.*?)\$\$", save_display_math, source, flags=re.DOTALL)
+
+    # Also capture unfenced LaTeX environments like \begin{align}...\end{align}
+    def save_standalone_env(match: re.Match) -> str:
+        idx = len(display_math_tokens)
+        typst_math = latex_to_typst_math(match.group(0), is_block=True)
+        display_math_tokens.append(f"\n{typst_math}\n")
+        return f"@@@DISPLAY_MATH_TOKEN_{idx}@@@"
+
+    source = re.sub(
+        r"\\begin\{(align\*?|aligned|gather\*?|equation\*?)\}.*?\\end\{\1\}",
+        save_standalone_env,
+        source,
+        flags=re.DOTALL,
+    )
 
     lines = source.splitlines()
     output_lines: List[str] = []

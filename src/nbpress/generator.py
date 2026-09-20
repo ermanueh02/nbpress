@@ -193,6 +193,7 @@ def generate_typst_source(
     if config.gutter:
         margin_inside = f"{config.margin_inside} + {config.gutter}"
 
+    theme_val = config.theme.value if hasattr(config.theme, "value") else str(config.theme)
     base_context = {
         "title": notebook.title,
         "subtitle": notebook.subtitle,
@@ -209,6 +210,7 @@ def generate_typst_source(
         "toc": config.toc,
         "page_numbers": config.page_numbers,
         "eco": config.eco,
+        "theme": theme_val,
     }
 
     if config.layout == LayoutMode.SLIDES:
@@ -223,11 +225,14 @@ def generate_typst_source(
     elif config.layout == LayoutMode.HANDOUT:
         template = env.get_template("handout.typ")
         slides = build_slides_list(notebook, assets_dir=assets_dir, config=config)
+        note_style = config.handout_note_style.value if hasattr(config.handout_note_style, "value") else str(config.handout_note_style)
+        if config.handout_grid_style and config.handout_grid_style != "lines":
+            note_style = config.handout_grid_style
         context = {
             **base_context,
             "slides": slides,
             "note_lines": config.handout_note_lines,
-            "grid_style": config.handout_grid_style,
+            "grid_style": note_style,
         }
         return template.render(**context)
 
@@ -299,7 +304,7 @@ def generate_pdf(
                 target_folder = build_dir / asset_folder_name
                 shutil.copytree(src_folder, target_folder, dirs_exist_ok=True)
                 
-                # Sanitize images for Typst compatibility (convert GIF to PNG, fix extension/signature mismatches)
+                # Sanitize images for Typst compatibility
                 from PIL import Image
                 for img_file in target_folder.glob("*.*"):
                     try:
@@ -322,31 +327,151 @@ def generate_pdf(
         base_src = TEMPLATES_DIR / "base.typ"
         shutil.copy(base_src, build_dir / "base.typ")
 
-        # Generate main .typ content
-        typ_content = generate_typst_source(doc, config, assets_dir=assets_dir)
-        
-        # Ensure all referenced images exist or have a placeholder
-        typ_content = ensure_images_exist(typ_content, build_dir)
+        # Check if Slide-Printer API should be used for Handout layout
+        slide_printer_used = False
+        if config.layout == LayoutMode.HANDOUT and config.use_slide_printer_api:
+            try:
+                from slide_printer import SlidePrinter, resolve_style
 
-        main_typ_path = build_dir / "main.typ"
-        main_typ_path.write_text(typ_content, encoding="utf-8")
+                # 1. Compile 16:9 widescreen presentation slides with Typst
+                slides_cfg = config.model_copy(update={"layout": LayoutMode.SLIDES, "paper": config.paper})
+                slides_typ = generate_typst_source(doc, slides_cfg, assets_dir=assets_dir)
+                slides_typ = ensure_images_exist(slides_typ, build_dir)
+                slides_typ_path = build_dir / "slides.typ"
+                slides_typ_path.write_text(slides_typ, encoding="utf-8")
 
-        # If user requested to keep Typst source
-        if keep_typ_source:
-            debug_typ_path = out_pdf.with_suffix(".typ")
-            debug_typ_path.write_text(typ_content, encoding="utf-8")
-            # also copy base.typ and assets alongside
-            shutil.copy(base_src, out_pdf.parent / "base.typ")
-            target_assets = out_pdf.parent / "assets"
-            if assets_dir.exists():
-                shutil.copytree(assets_dir, target_assets, dirs_exist_ok=True)
+                temp_slides_pdf = build_dir / "slides.pdf"
+                typst.compile(
+                    input=slides_typ_path,
+                    output=temp_slides_pdf,
+                    root=build_dir,
+                )
 
-        # Compile with Typst
-        typst.compile(
-            input=main_typ_path,
-            output=out_pdf,
-            root=build_dir,
-        )
+                # 2. Configure SlidePrinter
+                gutter_pts = 0.0
+                if config.gutter:
+                    raw_g = config.gutter.lower().strip()
+                    if raw_g.endswith("cm"):
+                        gutter_pts = float(raw_g[:-2]) * 28.3465
+                    elif raw_g.endswith("mm"):
+                        gutter_pts = float(raw_g[:-2]) * 2.83465
+                    elif raw_g.endswith("in"):
+                        gutter_pts = float(raw_g[:-2]) * 72.0
+                    elif raw_g.endswith("pt"):
+                        gutter_pts = float(raw_g[:-2])
+
+                paper_str = config.paper.value
+                if "presentation" in paper_str:
+                    paper_str = "a4"
+                elif paper_str == "us-letter":
+                    paper_str = "letter"
+
+                note_style_str = config.handout_note_style.value if hasattr(config.handout_note_style, "value") else str(config.handout_note_style)
+                if config.handout_grid_style and config.handout_grid_style != "lines":
+                    note_style_str = config.handout_grid_style
+                style_key = resolve_style(note_style_str)
+
+                layout_str = config.handout_disposition.value if hasattr(config.handout_disposition, "value") else str(config.handout_disposition)
+
+                sp_out_dir = build_dir / "sp_out"
+                sp_out_dir.mkdir(parents=True, exist_ok=True)
+
+                printer = SlidePrinter(
+                    paper_size=paper_str,
+                    margin=36.0,
+                    step=14.0,
+                    separation=10.0,
+                    output_dir=str(sp_out_dir),
+                    page_numbers=config.page_numbers,
+                    study_header=config.handout_study_header,
+                    study_title=config.handout_study_title or doc.title,
+                    gutter_margin=gutter_pts,
+                    duplex=config.handout_duplex,
+                    layout=layout_str,
+                    grayscale=config.eco,
+                )
+
+                processed = printer.process_file(
+                    input_path=str(temp_slides_pdf),
+                    styles=[style_key],
+                    output_dir=str(sp_out_dir),
+                )
+
+                if processed and Path(processed[0]).exists():
+                    shutil.copy2(processed[0], out_pdf)
+                    slide_printer_used = True
+
+                    if keep_typ_source:
+                        debug_typ_path = out_pdf.with_suffix(".typ")
+                        debug_typ_path.write_text(slides_typ, encoding="utf-8")
+            except Exception:
+                slide_printer_used = False
+
+        if not slide_printer_used:
+            # Native Typst compilation
+            typ_content = generate_typst_source(doc, config, assets_dir=assets_dir)
+            typ_content = ensure_images_exist(typ_content, build_dir)
+
+            main_typ_path = build_dir / "main.typ"
+            main_typ_path.write_text(typ_content, encoding="utf-8")
+
+            if keep_typ_source:
+                debug_typ_path = out_pdf.with_suffix(".typ")
+                debug_typ_path.write_text(typ_content, encoding="utf-8")
+                shutil.copy(base_src, out_pdf.parent / "base.typ")
+                target_assets = out_pdf.parent / "assets"
+                if assets_dir.exists():
+                    shutil.copytree(assets_dir, target_assets, dirs_exist_ok=True)
+
+            typst.compile(
+                input=main_typ_path,
+                output=out_pdf,
+                root=build_dir,
+            )
 
     compile_duration = time.perf_counter() - start_time
     return out_pdf, compile_duration
+
+
+def generate_multiple_pdfs(
+    notebook_path: Path | str,
+    layouts: List[LayoutMode],
+    output_dir: Optional[Path | str] = None,
+    config: Optional[NbpressConfig] = None,
+    keep_typ_source: bool = False,
+) -> Dict[LayoutMode, Tuple[Path, float]]:
+    """
+    Generate multiple PDF layouts for a single notebook document.
+    
+    Returns:
+        Dict[LayoutMode, Tuple[Path, float]]: Mapping of LayoutMode to (Path to PDF, duration in seconds)
+    """
+    if config is None:
+        config = NbpressConfig()
+
+    nb_path = Path(notebook_path)
+    base_dir = Path(output_dir) if output_dir else nb_path.parent
+    base_stem = nb_path.stem
+
+    results: Dict[LayoutMode, Tuple[Path, float]] = {}
+
+    suffix_map = {
+        LayoutMode.DOCUMENT: "_doc.pdf" if len(layouts) > 1 else ".pdf",
+        LayoutMode.SLIDES: "_slides.pdf",
+        LayoutMode.HANDOUT: "_handout.pdf",
+        LayoutMode.CHEATSHEET: "_cheatsheet.pdf",
+    }
+
+    for layout_mode in layouts:
+        out_name = f"{base_stem}{suffix_map.get(layout_mode, f'_{layout_mode.value}.pdf')}"
+        target_pdf = base_dir / out_name
+        layout_cfg = config.model_copy(update={"layout": layout_mode})
+        pdf_path, dur = generate_pdf(
+            notebook_path=nb_path,
+            output_pdf_path=target_pdf,
+            config=layout_cfg,
+            keep_typ_source=keep_typ_source,
+        )
+        results[layout_mode] = (pdf_path, dur)
+
+    return results

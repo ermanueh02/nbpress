@@ -24,10 +24,30 @@ class PaperSize(str, Enum):
     PRESENTATION_4_3 = "presentation-4-3"
 
 
+class DocTheme(str, Enum):
+    EDITORIAL = "editorial"
+    MID_CENTURY = "mid-century"
+    MINIMAL = "minimal"
+
+
+class HandoutNoteStyle(str, Enum):
+    LINES = "lines"
+    GRID = "grid"
+    DOTS = "dots"
+    BLANK = "blank"
+
+
+class HandoutDisposition(str, Enum):
+    ONE_UP = "1-up"
+    TWO_UP = "2-up"
+
+
 class NbpressConfig(BaseModel):
     # Layout and Paper
     layout: LayoutMode = Field(default=LayoutMode.DOCUMENT, description="Maquetación del documento")
+    layouts: list[LayoutMode] = Field(default_factory=list, description="Lista de maquetaciones para compilación múltiple")
     paper: PaperSize = Field(default=PaperSize.A4, description="Tamaño de papel para impresión")
+    theme: DocTheme = Field(default=DocTheme.EDITORIAL, description="Tema o estilo de diseño (editorial, mid-century, minimal)")
     
     # Print and Style Optimizations
     eco: bool = Field(default=False, description="Modo eco / ahorro de tinta (fondos claros, alto contraste)")
@@ -49,9 +69,15 @@ class NbpressConfig(BaseModel):
     line_numbers: bool = Field(default=True, description="Mostrar números de línea en celdas de código")
     max_output_lines: int = Field(default=35, description="Límite máximo de líneas para salidas de texto de consola")
     
-    # Handout Specifics
+    # Handout & Slide-Printer Specifics
     handout_note_lines: int = Field(default=8, description="Número de líneas para notas manuscritas por diapositiva")
-    handout_grid_style: str = Field(default="lines", description="Estilo de notas en handout: 'lines' o 'dots'")
+    handout_note_style: HandoutNoteStyle = Field(default=HandoutNoteStyle.LINES, description="Estilo de notas: 'lines', 'grid', 'dots', 'blank'")
+    handout_grid_style: str = Field(default="lines", description="Retrocompatibilidad con handout_note_style")
+    handout_disposition: HandoutDisposition = Field(default=HandoutDisposition.ONE_UP, description="Disposición en handout: 1-up o 2-up")
+    handout_study_header: bool = Field(default=False, description="Incluir cabecera de estudio en handout")
+    handout_study_title: Optional[str] = Field(default=None, description="Título para la cabecera de estudio")
+    handout_duplex: bool = Field(default=False, description="Soporte duplex para alternar márgenes de encuadernación")
+    use_slide_printer_api: bool = Field(default=True, description="Usar el motor oficial de slide-printer para procesar handouts")
 
     # Metadata Overrides
     title_override: Optional[str] = Field(default=None, description="Sobrescribir título del documento")

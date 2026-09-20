@@ -67,11 +67,20 @@ The wizard guides you through:
 # Compile a notebook into an editorial document
 nbpress build analysis.ipynb -o report.pdf
 
-# Generate presentation slides (16:9 widescreen)
-nbpress build lecture.ipynb -o presentation.pdf --layout slides
+# Compile multiple architectures at once (e.g. document + slides + handout)
+nbpress build analysis.ipynb --layout document,slides,handout
 
-# Generate a slide handout with note lines
-nbpress build presentation.ipynb -o handout.pdf --layout handout
+# Compile all 4 architectures simultaneously in one command
+nbpress build analysis.ipynb --all-layouts
+
+# Use the elegant Mid-Century Modern theme (ochre, terracotta, sage olive, ivory)
+nbpress build analysis.ipynb --theme mid-century --all-layouts
+
+# Generate a slide handout with technical graph grid notes (Slide-Printer API)
+nbpress build lecture.ipynb --layout handout --handout-style grid
+
+# Generate a compact 2-Up handout with dot-grid bullet notes
+nbpress build lecture.ipynb --layout handout --handout-style dots --handout-layout 2-up
 
 # Create a 2-column compact cheatsheet in Eco/Ink-Saver mode
 nbpress build machine_learning.ipynb -o summary.pdf --layout cheatsheet --eco
@@ -80,7 +89,7 @@ nbpress build machine_learning.ipynb -o summary.pdf --layout cheatsheet --eco
 nbpress info analysis.ipynb
 
 # Preview directly in default PDF viewer
-nbpress preview analysis.ipynb --layout handout
+nbpress preview analysis.ipynb --layout handout --theme mid-century
 ```
 
 ---

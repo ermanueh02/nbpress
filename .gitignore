@@ -44,6 +44,7 @@ htmlcov/
 # Generated PDFs & Typst builds
 *.pdf
 *.typ
+!src/nbpress/templates/*.typ
 tests/*.pdf
 tests/*.typ
 tests/assets/

@@ -49,9 +49,52 @@ def test_latex_to_typst_math():
     # Partials, boxed equations and Planck constant
     physics = latex_to_typst_math(r"\partial_\mu j^\mu = 0, \hbar, \boxed{E = mc^2}")
     assert "partial" in physics
-    assert "h.bar" in physics
-    assert "rect(" in physics
+    assert "planck" in physics
+    assert "#box(" in physics
 
     # Multi-letter indices
     indices = latex_to_typst_math(r"\epsilon_{ijk}")
     assert "_(i j k)" in indices
+
+
+def test_advanced_math_constructs():
+    # Operatorname (diag)
+    op_tex = latex_to_typst_math(r"\operatorname{diag}(1, -1, -1, -1)")
+    assert 'op("diag")' in op_tex
+
+    # Spacing commands
+    space_tex = latex_to_typst_math(r"a \quad b \qquad c")
+    assert "quad" in space_tex
+    assert "wide" in space_tex
+
+    # Align environments
+    align_tex = latex_to_typst_math(
+        r"\begin{align} A &= B \\ C &= D \end{align}", is_block=True
+    )
+    assert r"\begin{align}" not in align_tex
+    assert "A &= B \\ C &= D" in align_tex
+
+    # Boxed align environment
+    boxed_align = latex_to_typst_math(
+        r"\boxed{\begin{align} (E - \mathbf{p}) u = 0 \\ (E + \mathbf{p}) v = 0 \end{align}}",
+        is_block=True,
+    )
+    assert "#box(stroke:" in boxed_align
+    assert "bold(p)" in boxed_align
+
+    # Arrows and overset
+    arrow_tex = latex_to_typst_math(r"u_L \xrightarrow{\kappa \to 1} u_R")
+    assert "limits(arrow.r.long)^( kappa -> 1)" in arrow_tex
+
+    overset_tex = latex_to_typst_math(r"u_L \overset{P}{\longleftrightarrow} u_R")
+    assert "limits( arrow.l.r.long )^(P)" in overset_tex
+
+    # Unbraced accents
+    accent_tex = latex_to_typst_math(r"\bar\Psi + \hat p")
+    assert "macron( Psi )" in accent_tex or "macron(Psi)" in accent_tex
+    assert "hat(p)" in accent_tex
+
+    # Attached bold token like -i\mathbf{\nabla}
+    nabla_tex = latex_to_typst_math(r"-i\mathbf{\nabla}")
+    assert "bold( nabla )" in nabla_tex or "bold(nabla)" in nabla_tex
+    assert "b o l d" not in nabla_tex

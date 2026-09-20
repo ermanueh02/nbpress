@@ -64,6 +64,7 @@ def test_wizard_full_flow(tmp_path: Path):
         str(nb_path),     # Step 1: Notebook path
         "n",              # Step 2: Override metadata? (No)
         "1",              # Step 3: Layout (Document)
+        "1",              # Step 3.5: Theme (Classic Editorial)
         "1",              # Step 4: Paper (A4)
         "y",              # Step 4: Eco mode (Yes)
         "2",              # Step 4: Gutter (1.0cm)
@@ -94,6 +95,7 @@ def test_wizard_slides_flow(tmp_path: Path):
         str(nb_path),     # Step 1: Notebook path
         "n",              # Step 2: Override metadata? (No)
         "2",              # Step 3: Layout (Slides 16:9)
+        "2",              # Step 3.5: Theme (Mid-Century Modern)
         "n",              # Step 4: Eco mode (No)
         "y",              # Step 5: Show code (Yes)
         "y",              # Step 5: Line numbers (Yes)

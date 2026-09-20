@@ -22,8 +22,15 @@ if sys.platform == "win32":
         pass
 
 from nbpress import __version__
-from nbpress.config import LayoutMode, NbpressConfig, PaperSize
-from nbpress.generator import generate_pdf
+from nbpress.config import (
+    DocTheme,
+    HandoutDisposition,
+    HandoutNoteStyle,
+    LayoutMode,
+    NbpressConfig,
+    PaperSize,
+)
+from nbpress.generator import generate_multiple_pdfs, generate_pdf
 from nbpress.parser import load_notebook
 
 
@@ -162,6 +169,37 @@ def info_cmd(
     console.print(table)
 
 
+def parse_layouts(layout_str: str, all_flag: bool) -> List[LayoutMode]:
+    """Parse comma-separated layouts or all-flag into a list of LayoutMode."""
+    if all_flag or layout_str.strip().lower() in ("all", "todos", "*"):
+        return [LayoutMode.DOCUMENT, LayoutMode.SLIDES, LayoutMode.HANDOUT, LayoutMode.CHEATSHEET]
+
+    mode_map = {
+        "document": LayoutMode.DOCUMENT,
+        "doc": LayoutMode.DOCUMENT,
+        "report": LayoutMode.DOCUMENT,
+        "slides": LayoutMode.SLIDES,
+        "slide": LayoutMode.SLIDES,
+        "presentacion": LayoutMode.SLIDES,
+        "handout": LayoutMode.HANDOUT,
+        "handouts": LayoutMode.HANDOUT,
+        "apuntes": LayoutMode.HANDOUT,
+        "cheatsheet": LayoutMode.CHEATSHEET,
+        "cheat": LayoutMode.CHEATSHEET,
+        "resumen": LayoutMode.CHEATSHEET,
+    }
+
+    parts = [p.strip().lower() for p in layout_str.split(",") if p.strip()]
+    resolved: List[LayoutMode] = []
+    for p in parts:
+        if p in ("all", "todos", "*"):
+            return [LayoutMode.DOCUMENT, LayoutMode.SLIDES, LayoutMode.HANDOUT, LayoutMode.CHEATSHEET]
+        if p in mode_map and mode_map[p] not in resolved:
+            resolved.append(mode_map[p])
+
+    return resolved or [LayoutMode.DOCUMENT]
+
+
 @app.command(name="build")
 def build_cmd(
     notebooks: List[Path] = typer.Argument(
@@ -175,17 +213,48 @@ def build_cmd(
         "--output",
         help="Archivo PDF de salida o directorio de destino si son varios notebooks",
     ),
-    layout: LayoutMode = typer.Option(
-        LayoutMode.DOCUMENT,
+    layout: str = typer.Option(
+        "document",
         "-l",
         "--layout",
-        help="Maquetación: 'document' (informe continuo), 'slides' (presentación 16:9), 'handout' (apuntes con notas), 'cheatsheet' (2 columnas)",
+        help="Maquetación o lista separada por comas ('document', 'slides', 'handout', 'cheatsheet', 'all')",
+    ),
+    all_layouts: bool = typer.Option(
+        False,
+        "--all-layouts",
+        help="Compilar simultáneamente todas las arquitecturas (documento, slides, handout, cheatsheet)",
+    ),
+    theme: DocTheme = typer.Option(
+        DocTheme.EDITORIAL,
+        "-t",
+        "--theme",
+        help="Tema y arquitectura visual: 'editorial', 'mid-century', 'minimal'",
     ),
     paper: PaperSize = typer.Option(
         PaperSize.A4,
         "-p",
         "--paper",
         help="Tamaño de papel: 'a4', 'us-letter', 'a5'",
+    ),
+    handout_style: HandoutNoteStyle = typer.Option(
+        HandoutNoteStyle.LINES,
+        "--handout-style",
+        help="Estilo de notas en handout: 'lines' (pauta), 'grid' (cuadrícula), 'dots' (bullet points), 'blank' (blanco)",
+    ),
+    handout_layout: HandoutDisposition = typer.Option(
+        HandoutDisposition.ONE_UP,
+        "--handout-layout",
+        help="Disposición de diapositivas en handout: '1-up' (1 por pág.) o '2-up' (2 por pág.)",
+    ),
+    study_header: bool = typer.Option(
+        False,
+        "--study-header",
+        help="Incluir cabecera de estudio y apuntes en handout",
+    ),
+    study_title: Optional[str] = typer.Option(
+        None,
+        "--study-title",
+        help="Título o materia para la cabecera de estudio",
     ),
     eco: bool = typer.Option(
         False,
@@ -245,9 +314,14 @@ def build_cmd(
 ):
     """
     Compilar cuadernos Jupyter (.ipynb) en PDFs limpios de alta calidad editorial.
+    Soporta múltiples arquitecturas y maquetaciones simultáneas y diseño Mid-Century Modern.
     """
+    chosen_layouts = parse_layouts(layout, all_layouts)
+
     config = NbpressConfig(
-        layout=layout,
+        layout=chosen_layouts[0],
+        layouts=chosen_layouts,
+        theme=theme,
         paper=paper,
         eco=eco,
         gutter=gutter,
@@ -257,14 +331,23 @@ def build_cmd(
         line_numbers=line_numbers,
         max_output_lines=max_output_lines,
         handout_note_lines=handout_lines,
+        handout_note_style=handout_style,
+        handout_disposition=handout_layout,
+        handout_study_header=study_header,
+        handout_study_title=study_title,
         title_override=title,
         author_override=author,
     )
 
-    console.print(f"[bold cyan]📖 nbpress[/bold cyan] iniciando compilación ({layout.value}, papel: {paper.value})")
+    layouts_desc = ", ".join(l.value for l in chosen_layouts)
+    console.print(
+        f"[bold cyan]📖 nbpress[/bold cyan] iniciando compilación "
+        f"([bold yellow]{layouts_desc}[/bold yellow], tema: [magenta]{theme.value}[/magenta], papel: {paper.value})"
+    )
 
-    results_table = Table(border_style="green")
+    results_table = Table(border_style="green", header_style="bold green")
     results_table.add_column("Cuaderno", style="cyan")
+    results_table.add_column("Maquetación", style="yellow")
     results_table.add_column("PDF Generado", style="white")
     results_table.add_column("Tamaño", justify="right", style="magenta")
     results_table.add_column("Tiempo", justify="right", style="yellow")
@@ -273,29 +356,49 @@ def build_cmd(
         if nb_file.is_dir():
             continue
 
-        # Determine target PDF path
-        if output and output.is_dir():
-            target_pdf = output / nb_file.with_suffix(".pdf").name
-        elif output and len(notebooks) == 1:
-            target_pdf = output
-        else:
-            target_pdf = nb_file.with_suffix(".pdf")
-
         with console.status(f"[bold blue]Procesando {nb_file.name}...[/bold blue]"):
             try:
-                pdf_path, duration = generate_pdf(
-                    notebook_path=nb_file,
-                    output_pdf_path=target_pdf,
-                    config=config,
-                    keep_typ_source=keep_typ,
-                )
-                file_size_kb = pdf_path.stat().st_size / 1024
-                results_table.add_row(
-                    nb_file.name,
-                    pdf_path.name,
-                    f"{file_size_kb:.1f} KB",
-                    f"{duration*1000:.0f} ms",
-                )
+                if len(chosen_layouts) > 1:
+                    out_dir = output if (output and output.is_dir()) else nb_file.parent
+                    multi_res = generate_multiple_pdfs(
+                        notebook_path=nb_file,
+                        layouts=chosen_layouts,
+                        output_dir=out_dir,
+                        config=config,
+                        keep_typ_source=keep_typ,
+                    )
+                    for l_mode, (pdf_path, duration) in multi_res.items():
+                        file_size_kb = pdf_path.stat().st_size / 1024
+                        results_table.add_row(
+                            nb_file.name,
+                            l_mode.value,
+                            pdf_path.name,
+                            f"{file_size_kb:.1f} KB",
+                            f"{duration*1000:.0f} ms",
+                        )
+                else:
+                    # Single layout target
+                    if output and output.is_dir():
+                        target_pdf = output / nb_file.with_suffix(".pdf").name
+                    elif output and len(notebooks) == 1:
+                        target_pdf = output
+                    else:
+                        target_pdf = nb_file.with_suffix(".pdf")
+
+                    pdf_path, duration = generate_pdf(
+                        notebook_path=nb_file,
+                        output_pdf_path=target_pdf,
+                        config=config,
+                        keep_typ_source=keep_typ,
+                    )
+                    file_size_kb = pdf_path.stat().st_size / 1024
+                    results_table.add_row(
+                        nb_file.name,
+                        chosen_layouts[0].value,
+                        pdf_path.name,
+                        f"{file_size_kb:.1f} KB",
+                        f"{duration*1000:.0f} ms",
+                    )
             except Exception as e:
                 console.print(f"[bold red]❌ Error al compilar {nb_file.name}:[/bold red] {e}")
                 raise typer.Exit(1)
@@ -318,7 +421,13 @@ def preview_cmd(
         LayoutMode.DOCUMENT,
         "-l",
         "--layout",
-        help="Maquetación: 'document', 'handout', 'cheatsheet'",
+        help="Maquetación: 'document', 'slides', 'handout', 'cheatsheet'",
+    ),
+    theme: DocTheme = typer.Option(
+        DocTheme.EDITORIAL,
+        "-t",
+        "--theme",
+        help="Tema y diseño visual: 'editorial', 'mid-century', 'minimal'",
     ),
     paper: PaperSize = typer.Option(
         PaperSize.A4,
@@ -338,10 +447,10 @@ def preview_cmd(
     import os
     import subprocess
 
-    config = NbpressConfig(layout=layout, paper=paper, eco=eco)
+    config = NbpressConfig(layout=layout, theme=theme, paper=paper, eco=eco)
     target_pdf = notebook.with_suffix(".pdf")
 
-    console.print(f"[bold cyan]📖 nbpress preview:[/bold cyan] Generando vista previa de [green]{notebook.name}[/green]...")
+    console.print(f"[bold cyan]📖 nbpress preview:[/bold cyan] Generando vista previa de [green]{notebook.name}[/green] ({theme.value})...")
     pdf_path, duration = generate_pdf(notebook, target_pdf, config=config)
     console.print(f"[bold green]✔ PDF generado en {duration*1000:.0f} ms.[/bold green] Abriendo visor...")
 
