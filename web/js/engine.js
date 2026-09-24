@@ -6,12 +6,65 @@
 (function (window) {
   'use strict';
 
+  // Fallback math symbol converter when KaTeX is not loaded
+  function fallbackMathSymbolReplace(tex) {
+    if (!tex) return '';
+
+    let res = tex
+      .replace(/\\hbar\b/g, 'ℏ')
+      .replace(/\\partial\b/g, '∂')
+      .replace(/\\nabla\b/g, '∇')
+      .replace(/\\infty\b/g, '∞')
+      .replace(/\\times\b/g, '×')
+      .replace(/\\cdot\b/g, '·')
+      .replace(/\\pm\b/g, '±')
+      .replace(/\\neq\b/g, '≠')
+      .replace(/\\leq\b/g, '≤')
+      .replace(/\\geq\b/g, '≥')
+      .replace(/\\approx\b/g, '≈')
+      .replace(/\\in\b/g, '∈')
+      .replace(/\\sum\b/g, '∑')
+      .replace(/\\int\b/g, '∫')
+      .replace(/\\prod\b/g, '∏')
+      .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
+      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)')
+      .replace(/\\mathbf\{([^}]+)\}/g, '$1')
+      .replace(/\\boldsymbol\{([^}]+)\}/g, '$1')
+      .replace(/\\text\{([^}]+)\}/g, '$1')
+      .replace(/\\operatorname\{([^}]+)\}/g, '$1')
+      .replace(/\\quad\b/g, '  ')
+      .replace(/\\qquad\b/g, '    ');
+
+    // Greek letters
+    const greek = {
+      'alpha': 'α', 'beta': 'β', 'gamma': 'γ', 'delta': 'δ', 'epsilon': 'ε',
+      'zeta': 'ζ', 'eta': 'η', 'theta': 'θ', 'iota': 'ι', 'kappa': 'κ',
+      'lambda': 'λ', 'mu': 'μ', 'nu': 'ν', 'xi': 'ξ', 'pi': 'π',
+      'rho': 'ρ', 'sigma': 'σ', 'tau': 'τ', 'upsilon': 'υ', 'phi': 'φ',
+      'chi': 'χ', 'psi': 'ψ', 'omega': 'ω',
+      'Gamma': 'Γ', 'Delta': 'Δ', 'Theta': 'Θ', 'Lambda': 'Λ', 'Xi': 'Ξ',
+      'Pi': 'Π', 'Sigma': 'Σ', 'Upsilon': 'Υ', 'Phi': 'Φ', 'Psi': 'Ψ', 'Omega': 'Ω'
+    };
+    for (const [name, sym] of Object.entries(greek)) {
+      res = res.replace(new RegExp('\\\\' + name + '\\b', 'g'), sym);
+    }
+
+    // Common superscripts & subscripts
+    res = res.replace(/\^0\b/g, '⁰').replace(/\^1\b/g, '¹').replace(/\^2\b/g, '²').replace(/\^3\b/g, '³')
+      .replace(/\^\{0\}/g, '⁰').replace(/\^\{1\}/g, '¹').replace(/\^\{2\}/g, '²').replace(/\^\{3\}/g, '³')
+      .replace(/\^k\b/g, 'ᵏ').replace(/\^T\b/g, 'ᵀ')
+      .replace(/_0\b/g, '₀').replace(/_1\b/g, '₁').replace(/_2\b/g, '₂').replace(/_3\b/g, '₃')
+      .replace(/_\{0\}/g, '₀').replace(/_\{1\}/g, '₁').replace(/_\{2\}/g, '₂').replace(/_\{3\}/g, '₃')
+      .replace(/_\{ijk\}/g, 'ᵢⱼₖ')
+      .replace(/\^\\mu\b/g, 'ᵘ').replace(/_\\mu\b/g, 'ᵤ')
+      .replace(/\^\\nu\b/g, 'ᵛ').replace(/_\\nu\b/g, 'ᵥ');
+
+    return res;
+  }
+
   const NbpressEngine = {
     /**
      * Parses .ipynb JSON file content into a structured notebook document.
-     * @param {string|object} input - Raw JSON text or parsed object
-     * @param {string} fileName - Optional file name
-     * @returns {object} Structured notebook document
      */
     parseNotebook: function (input, fileName) {
       let data = typeof input === 'string' ? JSON.parse(input) : input;
@@ -68,9 +121,8 @@
         if (cell.isSlideStarter) {
           currentSlideIndex++;
           nb.stats.slidesCount++;
-          // Extract heading title
           const match = cell.source.match(/^#{1,3}\s+(.+)$/m);
-          cell.slideTitle = match ? match[1].trim() : `Slide ${currentSlideIndex}`;
+          cell.slideTitle = match ? match[1].replace(/[*_`]/g, '').trim() : `Slide ${currentSlideIndex}`;
         }
 
         if (cell.type === 'markdown') {
@@ -149,9 +201,6 @@
       return nb;
     },
 
-    /**
-     * Attempts to find an editorial title for the document.
-     */
     detectTitle: function (data, fileName) {
       if (data.metadata && data.metadata.title) {
         return data.metadata.title;
@@ -180,47 +229,149 @@
     },
 
     /**
-     * Converts raw LaTeX / Markdown math blocks to clean styled HTML.
+     * Groups cells into logical slides for Slides & Handout modes.
      */
-    formatMathAndMarkdown: function (text) {
+    buildSlidesList: function (nb) {
+      const slides = [];
+      let currentTitle = nb.title;
+      let currentCells = [];
+
+      nb.cells.forEach((cell, idx) => {
+        const isNew = cell.isSlideStarter && (idx > 0 || cell.type === 'markdown');
+        if (isNew && currentCells.length > 0) {
+          slides.push({
+            index: slides.length + 1,
+            title: currentTitle,
+            cells: currentCells
+          });
+          currentCells = [];
+          currentTitle = cell.slideTitle || `Slide ${slides.length + 1}`;
+        } else if (cell.isSlideStarter) {
+          currentTitle = cell.slideTitle || `Slide ${slides.length + 1}`;
+        }
+        currentCells.push(cell);
+      });
+
+      if (currentCells.length > 0) {
+        slides.push({
+          index: slides.length + 1,
+          title: currentTitle,
+          cells: currentCells
+        });
+      }
+
+      if (!slides.length) {
+        slides.push({
+          index: 1,
+          title: nb.title,
+          cells: nb.cells
+        });
+      }
+
+      return slides;
+    },
+
+    /**
+     * Converts LaTeX / Markdown text to publication-grade styled HTML.
+     * @param {string} text - Source text
+     * @param {boolean} stripFirstHeading - If true, strips the leading H1/H2 (to prevent duplicating slide title)
+     */
+    formatMathAndMarkdown: function (text, stripFirstHeading) {
       if (!text) return '';
 
-      // Escape HTML basic
-      let safe = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+      let src = text.trim();
 
-      // Block math $$ ... $$
-      safe = safe.replace(/\$\$([\s\S]*?)\$\$/g, function (m, eq) {
-        return `<div class="sheet-math-box">$$ ${eq.trim()} $$</div>`;
+      // Clean LaTeX accents in Spanish/Galician text: \'{\i} -> í, \'e -> é, etc.
+      src = src
+        .replace(/\\'\s*\{\\i\}/g, 'í')
+        .replace(/\\'\s*\{i\}/g, 'í')
+        .replace(/\\'\s*i\b/g, 'í')
+        .replace(/\\'\s*\{a\}/g, 'á')
+        .replace(/\\'\s*a\b/g, 'á')
+        .replace(/\\'\s*\{e\}/g, 'é')
+        .replace(/\\'\s*e\b/g, 'é')
+        .replace(/\\'\s*\{o\}/g, 'ó')
+        .replace(/\\'\s*o\b/g, 'ó')
+        .replace(/\\'\s*\{u\}/g, 'ú')
+        .replace(/\\'\s*u\b/g, 'ú')
+        .replace(/\\~\s*\{n\}/g, 'ñ')
+        .replace(/\\~\s*n\b/g, 'ñ');
+
+      // If requested, strip the first heading so it does not repeat under the slide title
+      if (stripFirstHeading) {
+        src = src.replace(/^(#{1,3})\s+[^\n]+\n*/m, '').trim();
+      }
+
+      if (!src) return '';
+
+      // 1. Math block replacements using KaTeX if available
+      const hasKatex = typeof window.katex !== 'undefined';
+
+      // Process display math $$ ... $$
+      src = src.replace(/\$\$([\s\S]*?)\$\$/g, function (match, eq) {
+        const cleanEq = eq.trim();
+        if (!cleanEq) return '';
+
+        if (hasKatex) {
+          try {
+            const rendered = window.katex.renderToString(cleanEq, { displayMode: true, throwOnError: false });
+            return `<div class="sheet-math-box">${rendered}</div>`;
+          } catch (e) {
+            console.warn('KaTeX display render error:', e);
+          }
+        }
+        const fallback = fallbackMathSymbolReplace(cleanEq);
+        return `<div class="sheet-math-box"><em>${fallback}</em></div>`;
       });
 
-      // Inline math $ ... $
-      safe = safe.replace(/\$([^\$\n]+?)\$/g, function (m, eq) {
-        return `<span style="font-family:'Newsreader',Georgia,serif; font-style:italic;">$${eq}$</span>`;
+      // Process inline math $ ... $ (ignoring empty or escaped dollars)
+      src = src.replace(/(?<!\\)\$([^\$\n]+?)(?<!\\)\$/g, function (match, eq) {
+        const cleanEq = eq.trim();
+        if (!cleanEq) return '';
+
+        if (hasKatex) {
+          try {
+            const rendered = window.katex.renderToString(cleanEq, { displayMode: false, throwOnError: false });
+            return rendered;
+          } catch (e) {
+            console.warn('KaTeX inline render error:', e);
+          }
+        }
+        const fallback = fallbackMathSymbolReplace(cleanEq);
+        return `<span style="font-family:'Newsreader',Georgia,serif; font-style:italic;">${fallback}</span>`;
       });
 
-      // Headers
-      safe = safe.replace(/^# (.*$)/gim, '<h1 class="sheet-title">$1</h1>');
-      safe = safe.replace(/^## (.*$)/gim, '<h2 style="font-family:var(--font-serif-display); font-size:1.3rem; margin-top:0.8rem; margin-bottom:0.4rem; color:#171717;">$1</h2>');
-      safe = safe.replace(/^### (.*$)/gim, '<h3 style="font-size:1rem; font-weight:700; margin-top:0.6rem; color:#171717;">$1</h3>');
+      // Escape basic HTML tags in prose
+      let safe = src
+        .replace(/&(?!(?:amp|lt|gt|quot|#\d+|#x[a-f\d]+);)/gi, '&amp;');
 
-      // Blockquotes
-      safe = safe.replace(/^\> (.*$)/gim, '<blockquote style="border-left:3px solid #c2410c; padding-left:0.8rem; margin:0.6rem 0; color:#52504b; font-style:italic;">$1</blockquote>');
+      // 2. Headings (Support all levels 1 to 6)
+      safe = safe.replace(/^######\s+(.*$)/gim, '<h6 class="sheet-h6">$1</h6>');
+      safe = safe.replace(/^#####\s+(.*$)/gim, '<h5 class="sheet-h5">$1</h5>');
+      safe = safe.replace(/^####\s+(.*$)/gim, '<h4 class="sheet-h4">$1</h4>');
+      safe = safe.replace(/^###\s+(.*$)/gim, '<h3 style="font-size:1.05rem; font-weight:700; margin-top:0.75rem; margin-bottom:0.35rem; color:#171717;">$1</h3>');
+      safe = safe.replace(/^##\s+(.*$)/gim, '<h2 style="font-family:var(--font-serif-display); font-size:1.35rem; margin-top:0.9rem; margin-bottom:0.4rem; color:#171717;">$1</h2>');
+      safe = safe.replace(/^#\s+(.*$)/gim, '<h1 class="sheet-title" style="margin-top:0.5rem; margin-bottom:0.5rem;">$1</h1>');
 
-      // Bold & Italic
-      safe = safe.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      safe = safe.replace(/\*(.*?)\*/g, '<em>$1</em>');
-      safe = safe.replace(/`([^`]+)`/g, '<code style="background:#f0ece3; padding:1px 4px; border-radius:3px; font-family:var(--font-mono); font-size:0.8em;">$1</code>');
+      // 3. Blockquotes
+      safe = safe.replace(/^\>\s?(.*$)/gim, '<blockquote style="border-left:3px solid #c2410c; padding-left:0.8rem; margin:0.6rem 0; color:#52504b; font-style:italic;">$1</blockquote>');
 
-      // Markdown Tables
+      // 4. Bold, Italic & Code
+      safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      safe = safe.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      safe = safe.replace(/`([^`]+)`/g, '<code style="background:#f0ece3; padding:1px 4px; border-radius:3px; font-family:var(--font-mono); font-size:0.8em; color:#171717;">$1</code>');
+
+      // 5. Links: [text](url) and reference labels [text]
+      safe = safe.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:#c2410c; text-decoration:underline;">$1</a>');
+      safe = safe.replace(/\[([a-zA-Z0-9_-]+)\](?!\()/g, '<span style="color:#52504b; font-size:0.85em; background:#f0ece3; padding:0 3px; border-radius:2px;">[$1]</span>');
+
+      // 6. Markdown Tables
       safe = safe.replace(/(\|.+?\|\n)+/g, function (match) {
         const lines = match.trim().split('\n');
         if (lines.length < 2) return match;
-        let html = '<table style="width:100%; border-collapse:collapse; margin:0.6rem 0; font-size:0.75rem;">';
+        let html = '<div style="overflow-x:auto; margin:0.6rem 0;"><table style="width:100%; border-collapse:collapse; font-size:0.78rem;">';
         lines.forEach((line, idx) => {
-          if (idx === 1 && line.includes('---')) return; // separator
+          if (idx === 1 && line.includes('---')) return;
           const cols = line.split('|').slice(1, -1);
           const tag = idx === 0 ? 'th' : 'td';
           html += '<tr>';
@@ -232,30 +383,28 @@
           });
           html += '</tr>';
         });
-        html += '</table>';
+        html += '</table></div>';
         return html;
       });
 
-      // Paragraphs
-      return safe.split('\n\n').map(p => {
-        if (p.startsWith('<h') || p.startsWith('<div') || p.startsWith('<block') || p.startsWith('<table')) {
-          return p;
+      // 7. Paragraphs
+      return safe.split(/\n\s*\n/).map(p => {
+        const trimmed = p.trim();
+        if (!trimmed) return '';
+        if (trimmed.startsWith('<h') || trimmed.startsWith('<div') || trimmed.startsWith('<blockquote') || trimmed.startsWith('<table')) {
+          return trimmed;
         }
-        return `<p class="sheet-prose">${p.replace(/\n/g, '<br>')}</p>`;
-      }).join('');
+        return `<p class="sheet-prose">${trimmed.replace(/\n/g, '<br>')}</p>`;
+      }).filter(Boolean).join('');
     },
 
     /**
      * Generates simulated print pages for the preview canvas & browser print engine.
-     * @param {object} nb - Parsed notebook document
-     * @param {object} config - Configuration object
-     * @returns {Array<object>} List of rendered sheets
      */
     generateSheets: function (nb, config) {
       config = config || {};
       const layout = config.layout || 'document';
       const theme = config.theme || 'editorial';
-      const paper = config.paper || 'a4';
       const gutter = config.gutter || 'none';
       const duplex = !!config.duplex;
       const holeGuides = !!config.holeGuides;
@@ -265,7 +414,6 @@
 
       const sheets = [];
 
-      // Helper to create sheet skeleton
       const createSheet = (sheetNum, totalSheets) => {
         let isEven = sheetNum % 2 === 0;
         let gutterClass = '';
@@ -282,21 +430,62 @@
           totalCount: totalSheets,
           gutterClass: gutterClass,
           holeGuides: holeGuides,
-          headerText: `${nb.title} · nbpress ${theme}`,
+          isSlide: layout === 'slides',
+          headerText: `${config.titleOverride || nb.title} · nbpress ${theme}`,
           footerText: `Pág. ${sheetNum} de ${totalSheets}`,
           htmlContent: ''
         };
       };
 
       if (layout === 'document') {
-        // Mode 1: Document (Cover + Continuous Sections)
-        let totalEstSheets = Math.max(2, Math.ceil(nb.cells.length / 5) + 1);
+        // --- Mode 1: Document (Academic Continuous Report) ---
+        let contentChunks = [];
 
-        // Sheet 1: Editorial Cover Page
+        nb.cells.forEach(cell => {
+          if (cell.type === 'markdown') {
+            const formatted = this.formatMathAndMarkdown(cell.source, false);
+            if (formatted) contentChunks.push({ type: 'md', html: formatted, weight: Math.max(1, Math.ceil(cell.source.length / 300)) });
+          } else if (cell.type === 'code' && config.showCode !== false) {
+            const prompt = config.showPrompts !== false ? `<span class="sheet-code-prompt">In [${cell.executionCount || ' '}]:</span> ` : '';
+            const codeHtml = `
+              <div class="sheet-code-block" style="${eco ? 'background:#ffffff; border-color:#d5cfc2;' : ''}">
+                ${prompt}${cell.source.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+              </div>
+            `;
+            contentChunks.push({ type: 'code', html: codeHtml, weight: 2 });
+
+            // Outputs
+            cell.outputs.forEach(out => {
+              if (out.hasImage && out.images.length) {
+                out.images.forEach(imgSrc => {
+                  contentChunks.push({
+                    type: 'image',
+                    html: `<div class="sheet-img-wrap" style="margin:0.5rem 0;"><img src="${imgSrc}" alt="Plot"></div>`,
+                    weight: 4
+                  });
+                });
+              } else if (out.hasTable && out.html) {
+                contentChunks.push({
+                  type: 'table',
+                  html: `<div style="overflow-x:auto; margin:0.5rem 0;">${out.html}</div>`,
+                  weight: 3
+                });
+              } else if (out.text && !out.isError) {
+                contentChunks.push({
+                  type: 'text',
+                  html: `<div style="font-family:var(--font-mono); font-size:0.68rem; color:#52504b; background:#fcfbf9; padding:4px 8px; border-left:2px solid #a39f97; margin:0.35rem 0; white-space:pre-wrap;">${out.text.replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 300)}</div>`,
+                  weight: 1
+                });
+              }
+            });
+          }
+        });
+
+        // Sheet 1: Editorial Cover Page (if enabled)
         if (config.cover !== false) {
-          const coverSheet = createSheet(1, totalEstSheets);
+          const coverSheet = createSheet(1, 1);
           coverSheet.htmlContent = `
-            <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; padding:2rem 0;">
+            <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; padding:3rem 0;">
               <div style="font-family:var(--font-mono); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.15em; color:#c2410c; margin-bottom:1rem;">
                 NBPRESS · EDITORIAL REPORT
               </div>
@@ -316,52 +505,18 @@
           sheets.push(coverSheet);
         }
 
-        // Subsequent Content Sheets
-        let currentSheet = createSheet(sheets.length + 1, totalEstSheets);
-        let itemsInSheet = 0;
+        // Budget pages: ~6-8 weight units per page to avoid overflow
+        let currentSheet = createSheet(sheets.length + 1, 1);
+        let currentWeight = 0;
 
-        nb.cells.forEach(cell => {
-          if (itemsInSheet >= 4) {
+        contentChunks.forEach(chunk => {
+          if (currentWeight + chunk.weight > 7 && currentSheet.htmlContent) {
             sheets.push(currentSheet);
-            currentSheet = createSheet(sheets.length + 1, totalEstSheets);
-            itemsInSheet = 0;
+            currentSheet = createSheet(sheets.length + 1, 1);
+            currentWeight = 0;
           }
-
-          if (cell.type === 'markdown') {
-            currentSheet.htmlContent += `<div style="margin-bottom:1rem;">${this.formatMathAndMarkdown(cell.source)}</div>`;
-            itemsInSheet++;
-          } else if (cell.type === 'code' && config.showCode !== false) {
-            const prompt = config.showPrompts !== false ? `<span class="sheet-code-prompt">In [${cell.executionCount || ' '}]:</span> ` : '';
-            currentSheet.htmlContent += `
-              <div class="sheet-code-block" style="${eco ? 'background:#ffffff; border-color:#d5cfc2;' : ''}">
-                ${prompt}${cell.source.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-              </div>
-            `;
-            itemsInSheet++;
-
-            // Outputs
-            cell.outputs.forEach(out => {
-              if (out.hasImage && out.images.length) {
-                out.images.forEach(imgSrc => {
-                  currentSheet.htmlContent += `
-                    <div class="sheet-img-wrap" style="margin:0.5rem 0;">
-                      <img src="${imgSrc}" alt="Rendered Plot">
-                    </div>
-                  `;
-                  itemsInSheet += 2;
-                });
-              } else if (out.hasTable && out.html) {
-                currentSheet.htmlContent += `<div style="overflow-x:auto; margin:0.5rem 0;">${out.html}</div>`;
-                itemsInSheet++;
-              } else if (out.text && !out.isError) {
-                currentSheet.htmlContent += `
-                  <div style="font-family:var(--font-mono); font-size:0.68rem; color:#52504b; background:#fcfbf9; padding:4px 8px; border-left:2px solid #a39f97; margin:0.35rem 0; white-space:pre-wrap;">
-                    ${out.text.replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 400)}
-                  </div>
-                `;
-              }
-            });
-          }
+          currentSheet.htmlContent += `<div style="margin-bottom:0.75rem;">${chunk.html}</div>`;
+          currentWeight += chunk.weight;
         });
 
         if (currentSheet.htmlContent) {
@@ -369,25 +524,45 @@
         }
 
       } else if (layout === 'slides') {
-        // Mode 2: Slides (16:9 Landscape Presentations)
-        let slideCells = nb.cells.filter(c => c.isSlideStarter);
-        if (!slideCells.length) slideCells = nb.cells.slice(0, 10);
+        // --- Mode 2: Slides (16:9 Presentation Deck) ---
+        const slidesList = this.buildSlidesList(nb);
 
-        slideCells.forEach((c, idx) => {
-          const sheet = createSheet(idx + 1, slideCells.length);
-          sheet.footerText = `Diapositiva ${idx + 1} de ${slideCells.length}`;
+        slidesList.forEach((slide, idx) => {
+          const sheet = createSheet(idx + 1, slidesList.length);
+          sheet.isSlide = true;
+          sheet.footerText = `${nb.title} · Diapositiva ${idx + 1} de ${slidesList.length}`;
+
+          let bodyHtml = '';
+          slide.cells.forEach((c, cellIdx) => {
+            if (c.type === 'markdown') {
+              // Strip heading on first markdown cell if it matches the slide title!
+              const strip = cellIdx === 0;
+              const mdHtml = this.formatMathAndMarkdown(c.source, strip);
+              if (mdHtml) bodyHtml += `<div style="margin-bottom:0.6rem;">${mdHtml}</div>`;
+            } else if (c.type === 'code' && config.showCode !== false) {
+              bodyHtml += `
+                <div class="sheet-code-block" style="margin-bottom:0.5rem;">
+                  ${c.source.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+                </div>
+              `;
+              c.outputs.forEach(out => {
+                if (out.hasImage && out.images.length) {
+                  out.images.forEach(img => {
+                    bodyHtml += `<div class="sheet-img-wrap" style="max-height:180px;"><img src="${img}" style="max-height:160px;" alt="Plot"></div>`;
+                  });
+                }
+              });
+            }
+          });
+
           sheet.htmlContent = `
-            <div style="flex:1; display:flex; flex-direction:column; justify-content:space-between;">
-              <div class="handout-slide-hdr">
-                <span class="handout-slide-title">${c.slideTitle || `Sección ${idx + 1}`}</span>
-                <span class="handout-slide-badge">Slide ${idx + 1} / ${slideCells.length}</span>
+            <div style="flex:1; display:flex; flex-direction:column; justify-content:space-between; height:100%;">
+              <div class="handout-slide-hdr" style="border-bottom:1.5px solid #171717; padding-bottom:0.5rem; margin-bottom:1rem;">
+                <span class="handout-slide-title" style="font-size:1.35rem; font-family:var(--font-serif-display);">${slide.title}</span>
+                <span class="handout-slide-badge" style="background:#171717; color:#ffffff; padding:0.2rem 0.6rem; border-radius:3px;">Slide ${idx + 1} / ${slidesList.length}</span>
               </div>
-              <div style="flex:1; padding:1.25rem 0;">
-                ${this.formatMathAndMarkdown(c.source)}
-              </div>
-              <div style="border-top:1px solid #e2ddd3; padding-top:0.5rem; display:flex; justify-content:space-between; font-size:0.7rem; color:#827e77;">
-                <span>${nb.title}</span>
-                <span>nbpress slides · 16:9</span>
+              <div style="flex:1; overflow:hidden;">
+                ${bodyHtml || '<p class="sheet-prose" style="color:#827e77; font-style:italic;">(Diapositiva de transición)</p>'}
               </div>
             </div>
           `;
@@ -395,73 +570,79 @@
         });
 
       } else if (layout === 'handout') {
-        // Mode 3: Handout (Slide-Printer study notes)
-        let slideCells = nb.cells.filter(c => c.isSlideStarter);
-        if (!slideCells.length) slideCells = nb.cells.slice(0, 8);
-
-        let notePatternClass = 'swatch-' + noteStyle;
+        // --- Mode 3: Handout (Slide-Printer study notes) ---
+        const slidesList = this.buildSlidesList(nb);
+        const notePatternClass = 'swatch-' + noteStyle;
 
         if (handoutLayout === '2-up') {
           // 2 slides per sheet
-          for (let i = 0; i < slideCells.length; i += 2) {
-            const sheet = createSheet(Math.floor(i / 2) + 1, Math.ceil(slideCells.length / 2));
-            const c1 = slideCells[i];
-            const c2 = slideCells[i + 1];
+          for (let i = 0; i < slidesList.length; i += 2) {
+            const sheet = createSheet(Math.floor(i / 2) + 1, Math.ceil(slidesList.length / 2));
+            const s1 = slidesList[i];
+            const s2 = slidesList[i + 1];
 
-            sheet.htmlContent = `
-              <div style="display:flex; flex-direction:column; gap:1.25rem; height:100%;">
-                <!-- Slide 1 -->
+            const renderSlideContent = (s, num) => {
+              let inner = '';
+              s.cells.forEach((c, cIdx) => {
+                if (c.type === 'markdown') {
+                  inner += this.formatMathAndMarkdown(c.source, cIdx === 0);
+                } else if (c.type === 'code') {
+                  inner += `<div class="sheet-code-block" style="font-size:0.65rem; padding:3px 6px;">${c.source.slice(0, 150).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+                }
+              });
+              return `
                 <div style="flex:1; display:flex; flex-direction:column;">
                   <div class="handout-slide-box">
                     <div class="handout-slide-hdr">
-                      <span class="handout-slide-title">${c1.slideTitle}</span>
-                      <span class="handout-slide-badge">Slide ${i + 1}</span>
+                      <span class="handout-slide-title">${s.title}</span>
+                      <span class="handout-slide-badge">Slide ${num}</span>
                     </div>
-                    <div style="font-size:0.8rem; max-height:80px; overflow:hidden;">
-                      ${this.formatMathAndMarkdown(c1.source).slice(0, 200)}...
+                    <div style="font-size:0.8rem; max-height:85px; overflow:hidden;">
+                      ${inner}
                     </div>
                   </div>
-                  <div class="handout-notes-area ${notePatternClass}" style="min-height:140px;"></div>
+                  <div class="handout-notes-area ${notePatternClass}" style="min-height:140px; margin-top:0.6rem;"></div>
                 </div>
+              `;
+            };
 
-                ${c2 ? `
-                <!-- Slide 2 -->
-                <div style="flex:1; display:flex; flex-direction:column; border-top:1px dashed #d5cfc2; padding-top:1rem;">
-                  <div class="handout-slide-box">
-                    <div class="handout-slide-hdr">
-                      <span class="handout-slide-title">${c2.slideTitle}</span>
-                      <span class="handout-slide-badge">Slide ${i + 2}</span>
-                    </div>
-                    <div style="font-size:0.8rem; max-height:80px; overflow:hidden;">
-                      ${this.formatMathAndMarkdown(c2.source).slice(0, 200)}...
-                    </div>
-                  </div>
-                  <div class="handout-notes-area ${notePatternClass}" style="min-height:140px;"></div>
-                </div>
-                ` : ''}
+            sheet.htmlContent = `
+              <div style="display:flex; flex-direction:column; gap:1.25rem; height:100%;">
+                ${renderSlideContent(s1, i + 1)}
+                ${s2 ? `<div style="border-top:1px dashed #d5cfc2; padding-top:0.75rem;">${renderSlideContent(s2, i + 2)}</div>` : ''}
               </div>
             `;
             sheets.push(sheet);
           }
         } else {
           // 1-up Standard
-          slideCells.forEach((c, idx) => {
-            const sheet = createSheet(idx + 1, slideCells.length);
-            sheet.footerText = `Diapositiva ${idx + 1} de ${slideCells.length}`;
+          slidesList.forEach((slide, idx) => {
+            const sheet = createSheet(idx + 1, slidesList.length);
+            sheet.footerText = `Diapositiva ${idx + 1} de ${slidesList.length}`;
+
+            let slideBody = '';
+            slide.cells.forEach((c, cIdx) => {
+              if (c.type === 'markdown') {
+                slideBody += this.formatMathAndMarkdown(c.source, cIdx === 0);
+              } else if (c.type === 'code') {
+                slideBody += `<div class="sheet-code-block" style="margin:0.4rem 0;">${c.source.slice(0, 200).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+              }
+            });
+
             sheet.htmlContent = `
               <div style="display:flex; flex-direction:column; height:100%;">
                 <div class="handout-slide-box">
                   <div class="handout-slide-hdr">
-                    <span class="handout-slide-title">${c.slideTitle}</span>
+                    <span class="handout-slide-title">${slide.title}</span>
                     <span class="handout-slide-badge">Slide ${idx + 1}</span>
                   </div>
-                  <div style="font-size:0.85rem; max-height:180px; overflow:hidden;">
-                    ${this.formatMathAndMarkdown(c.source)}
+                  <div style="font-size:0.85rem; max-height:220px; overflow:hidden;">
+                    ${slideBody}
                   </div>
                 </div>
 
-                <!-- Note-Taking Area -->
-                <div class="handout-notes-area ${notePatternClass}"></div>
+                <!-- Dedicated Note-Taking Area -->
+                <div class="handout-notes-area ${notePatternClass}" style="flex:1; min-height:300px; margin-top:1rem;"></div>
               </div>
             `;
             sheets.push(sheet);
@@ -469,7 +650,7 @@
         }
 
       } else if (layout === 'cheatsheet') {
-        // Mode 4: Cheatsheet (Dense 2-Column Summary)
+        // --- Mode 4: Cheatsheet (Dense 2-Column Summary) ---
         const sheet = createSheet(1, 1);
         sheet.footerText = `${nb.title} · Cheatsheet Summary`;
         let col1 = '';
@@ -478,7 +659,7 @@
         nb.cells.forEach((c, idx) => {
           let chunk = '';
           if (c.type === 'markdown') {
-            chunk = `<div style="font-size:0.75rem; margin-bottom:0.75rem;">${this.formatMathAndMarkdown(c.source)}</div>`;
+            chunk = `<div style="font-size:0.75rem; margin-bottom:0.75rem;">${this.formatMathAndMarkdown(c.source, false)}</div>`;
           } else if (c.type === 'code') {
             chunk = `
               <div class="sheet-code-block" style="font-size:0.65rem; padding:4px 6px; margin-bottom:0.5rem;">
@@ -506,11 +687,15 @@
         sheets.push(sheet);
       }
 
-      // Update total sheet counters
+      // Final pass to sync total sheet count across all footers
       const finalCount = sheets.length;
       sheets.forEach(s => {
         s.totalCount = finalCount;
-        s.footerText = `Pág. ${s.pageNumber} de ${finalCount}`;
+        if (layout === 'slides') {
+          s.footerText = `Slide ${s.pageNumber} / ${finalCount}`;
+        } else {
+          s.footerText = `Pág. ${s.pageNumber} de ${finalCount}`;
+        }
       });
 
       return sheets;
@@ -524,7 +709,6 @@
       const layout = config.layout || 'document';
       const theme = config.theme || 'editorial';
       const paper = config.paper === 'us-letter' ? 'us-letter' : (config.paper === 'a5' ? 'a5' : 'a4');
-      const eco = !!config.eco;
       const title = config.titleOverride || nb.title;
 
       let typst = `// ==========================================================================\n`;
@@ -576,9 +760,6 @@
       return typst;
     },
 
-    /**
-     * Builds the exact CLI command line to reproduce current configuration.
-     */
     buildCliCommand: function (nb, config) {
       let cmd = `nbpress build "${nb.fileName}"`;
       if (config.layout && config.layout !== 'document') {

@@ -26,6 +26,10 @@
   
   <!-- Core Stylesheet -->
   <link rel="stylesheet" href="css/style.css">
+
+  <!-- KaTeX for publication-grade mathematical formula rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -485,6 +489,9 @@
     </section>
 
   </main>
+
+  <!-- Complete Multi-Page Print Container (rendered with ALL sheets for window.print()) -->
+  <div id="printContainer" class="print-only" aria-hidden="true"></div>
 
   <!-- Client-side Scripts -->
   <script src="vendor/jszip.min.js"></script>

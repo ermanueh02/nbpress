@@ -1390,16 +1390,64 @@ input:checked + .slider:before {
   object-fit: contain;
 }
 
+.sheet-h4 {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #171717;
+  margin-top: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.sheet-h5 {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #374151;
+  margin-top: 0.7rem;
+  margin-bottom: 0.3rem;
+}
+
+.sheet-h6 {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  margin-top: 0.6rem;
+  margin-bottom: 0.25rem;
+}
+
 .sheet-math-box {
-  background: #faf9f6;
-  border: 1px dashed #d5cfc2;
-  border-radius: 4px;
-  padding: 0.6rem;
+  margin: 0.75rem 0;
+  padding: 0.35rem 0;
   text-align: center;
   font-family: 'Newsreader', Georgia, serif;
-  font-size: 1rem;
+  font-size: 1.15rem;
   color: #171717;
+  overflow-x: auto;
+  line-height: 1.4;
 }
+
+.sheet-math-box.boxed {
+  border: 1px solid #171717;
+  padding: 0.5rem 1rem;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+/* Widescreen 16:9 Presentation Deck in Slides Mode */
+.paper-sheet.sheet-slides {
+  max-width: 860px;
+  min-height: 484px;
+  aspect-ratio: 16 / 9;
+  padding: 2.25rem 2.8rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
 
 /* Handout Mode Presentation Slide Card */
 .handout-slide-box {
@@ -1605,9 +1653,13 @@ input:checked + .slider:before {
   }
 }
 
+.print-only {
+  display: none !important;
+}
+
 /* ==========================================================================
    Direct Browser Print Engine (@media print)
-   Formats sheets to exact DIN A4 / US Letter dimensions with 0 browser margins.
+   Formats ALL sheets to exact DIN A4 / US Letter dimensions with 0 browser margins.
    ========================================================================== */
 
 @media print {
@@ -1616,9 +1668,16 @@ input:checked + .slider:before {
     margin: 0;
   }
 
+  body[data-layout="slides"] @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
   body {
     background: #ffffff !important;
     color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .app-header,
@@ -1627,11 +1686,15 @@ input:checked + .slider:before {
   .workspace-meta-bar,
   .batch-bar,
   .preview-tabs-bar,
-  .sticky-actions-bar {
+  .sticky-actions-bar,
+  .preview-canvas-viewport,
+  #previewCanvasViewport,
+  #outlineViewContainer,
+  #typstViewContainer {
     display: none !important;
   }
 
-  .app-container, .workspace-container, .workspace-layout, .preview-column, .preview-canvas-viewport {
+  .app-container, .workspace-container, .workspace-layout, .preview-column {
     padding: 0 !important;
     margin: 0 !important;
     border: none !important;
@@ -1642,14 +1705,35 @@ input:checked + .slider:before {
     display: block !important;
   }
 
-  .paper-sheet {
+  .print-only {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .paper-sheet.print-sheet {
     box-shadow: none !important;
     border: none !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: 100vh !important;
+    min-height: 100vh !important;
+    height: auto !important;
     page-break-after: always !important;
     break-after: page !important;
-    padding: 20mm !important;
+    padding: 18mm 20mm !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+  }
+
+  .paper-sheet.print-sheet:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  body[data-layout="slides"] .paper-sheet.print-sheet {
+    min-height: 100vh !important;
+    aspect-ratio: 16 / 9;
+    padding: 14mm 20mm !important;
   }
 }
+

@@ -569,7 +569,11 @@
     // Direct Browser Print Button
     if (el.printPdfBtn) {
       el.printPdfBtn.addEventListener('click', () => {
-        window.print();
+        if (previewController) {
+          previewController.printAll();
+        } else {
+          window.print();
+        }
       });
     }
 
