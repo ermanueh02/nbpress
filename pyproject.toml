@@ -10,8 +10,10 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
+    { name = "Manuel Vázquez Carreira" },
     { name = "nbpress contributors" }
 ]
+urls = { Homepage = "https://github.com/ermanueh02/nbpress", "Web Studio" = "https://ermanueh02.github.io/nbpress/", Repository = "https://github.com/ermanueh02/nbpress", Issues = "https://github.com/ermanueh02/nbpress/issues" }
 keywords = ["jupyter", "notebook", "pdf", "typst", "print", "handout", "cheatsheet", "editorial"]
 classifiers = [
     "Development Status :: 4 - Beta",

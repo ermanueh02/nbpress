@@ -69,3 +69,22 @@ def test_ensure_slide_printer_installs_from_git(monkeypatch):
     assert mock_check_call.called
     called_cmd = mock_check_call.call_args[0][0]
     assert SLIDE_PRINTER_GIT_URL in called_cmd
+
+
+def test_cli_web_help():
+    result = runner.invoke(app, ["web", "--help"])
+    assert result.exit_code == 0
+    assert "estudio web interactivo" in result.output
+    assert "--port" in result.output
+    assert "--host" in result.output
+
+
+def test_web_directory_exists():
+    from nbpress import cli
+    pkg_web = Path(cli.__file__).resolve().parent / "web"
+    assert pkg_web.is_dir()
+    assert (pkg_web / "index.html").is_file()
+    assert (pkg_web / "css" / "style.css").is_file()
+    assert (pkg_web / "js" / "app.js").is_file()
+    assert (pkg_web / "js" / "engine.js").is_file()
+

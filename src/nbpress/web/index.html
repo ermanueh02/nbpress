@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nbpress · Editorial Jupyter Typesetting & Print Studio</title>
+  <meta name="description" content="Transform Jupyter Notebooks (.ipynb) into editorial-grade, print-ready PDFs, presentation slides, Slide-Printer handouts with note space, and compact cheatsheets.">
+  
+  <!-- PWA & Mobile Meta Tags -->
+  <meta name="theme-color" content="#141517" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7f5f0" media="(prefers-color-scheme: light)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="nbpress">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+
+  <!-- Typography: Newsreader, Plus Jakarta Sans, Space Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  
+  <!-- Core Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="#" class="brand-group" id="brandHomeLink" title="nbpress">
+        <div class="brand-insignia" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            <line x1="8" y1="6" x2="16" y2="6"></line>
+            <line x1="8" y1="10" x2="14" y2="10"></line>
+          </svg>
+        </div>
+        <div class="brand-text-col">
+          <span class="brand-title">nbpress <span class="brand-sparkle">✨</span></span>
+          <span class="brand-subtitle" id="brandSubtitleText" data-i18n="brandSubtitle">Editorial Jupyter Typesetting</span>
+        </div>
+      </a>
+
+      <div class="header-actions">
+        <!-- Language Selector -->
+        <div class="lang-selector-group" role="group" aria-label="Language">
+          <button type="button" class="lang-btn active" data-lang="en" title="English">EN</button>
+          <span class="lang-divider">/</span>
+          <button type="button" class="lang-btn" data-lang="es" title="Español">ES</button>
+          <span class="lang-divider">/</span>
+          <button type="button" class="lang-btn" data-lang="gl" title="Galego">GL</button>
+        </div>
+
+        <!-- In-Browser Privacy Badge -->
+        <div class="privacy-badge" title="Your notebooks are parsed entirely inside your browser memory. Nothing is ever uploaded to any server.">
+          <span class="privacy-dot" aria-hidden="true"></span>
+          <span id="privacyBadgeText" data-i18n="privacyBadge">100% Private · In-Browser</span>
+        </div>
+
+        <!-- System / Light / Dark Theme Button -->
+        <button type="button" class="theme-mode-btn" id="themeToggleBtn" title="Theme Mode" aria-label="Toggle theme">
+          <span id="themeModeIcon" aria-hidden="true">◐</span>
+          <span id="themeModeText" data-i18n="themeSystem">System</span>
+        </button>
+
+        <!-- PWA Install Button -->
+        <button type="button" class="install-app-btn hidden" id="installAppBtn" title="Install nbpress as App" aria-label="Install App">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span id="installAppBtnText" data-i18n="installBtn">Install</span>
+        </button>
+
+        <!-- GitHub Repository Link -->
+        <a href="https://github.com/ermanueh02/nbpress" target="_blank" rel="noopener noreferrer" class="icon-btn" id="githubLink" title="Source Code on GitHub" aria-label="GitHub Repository">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Container -->
+  <main class="app-container">
+
+    <!-- Hero / Initial State -->
+    <section class="hero-section" id="initialHero">
+      <div class="hero-supertitle" id="heroSuperText" data-i18n="heroSuper">Jupyter to Editorial PDF Studio</div>
+      <h1 class="hero-title" id="heroTitleText" data-i18n="heroTitle">Transform Notebooks into Print-Ready Editorial Documents</h1>
+      <p class="hero-subtitle" id="heroSubText" data-i18n="heroSubtitle">
+        Publish academic reports, 16:9 presentation slides, Slide-Printer study handouts with note-taking space, and compact 2-column revision sheets directly in your browser or from the command line.
+      </p>
+
+      <!-- Hidden File Input -->
+      <input type="file" id="fileInput" accept=".ipynb,application/x-ipynb+json" multiple style="display: none;">
+
+      <!-- Dropzone -->
+      <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Drop Jupyter notebook here">
+        <div class="dropzone-icon" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+        </div>
+        <div class="dropzone-title" id="dropTitleText" data-i18n="dropTitle">Drop your Jupyter Notebook (.ipynb) here</div>
+        <div class="dropzone-desc" id="dropDescText" data-i18n="dropDesc">or select from your local files to preview and compile instantly</div>
+        <button type="button" class="dropzone-btn" id="chooseFileBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
+          </svg>
+          <span data-i18n="dropBtn">Choose .ipynb File</span>
+        </button>
+      </div>
+
+      <!-- Sample Notebooks Quick Strip -->
+      <div class="sample-bar">
+        <span class="sample-bar-label" data-i18n="sampleLabel">Or explore with samples:</span>
+        <button type="button" class="sample-btn" data-sample="analysis">
+          <span>🔬</span> <span data-i18n="sampleAnalysis">Quantitative Analysis & ML</span>
+        </button>
+        <button type="button" class="sample-btn" data-sample="slides">
+          <span>🖥️</span> <span data-i18n="sampleSlides">Lecture Slides Deck</span>
+        </button>
+      </div>
+
+      <!-- Features Strip -->
+      <div class="features-grid">
+        <div class="feature-item">
+          <div class="feature-item-num" data-i18n="feat1Num">01</div>
+          <div class="feature-item-title" data-i18n="feat1Title">Typst Editorial Typography</div>
+          <div class="feature-item-desc" data-i18n="feat1Desc">Publication-grade typography, mathematical formula rendering, crisp table borders, and automatic page numbers.</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-item-num" data-i18n="feat2Num">02</div>
+          <div class="feature-item-title" data-i18n="feat2Title">4 Purpose-Built Layouts</div>
+          <div class="feature-item-desc" data-i18n="feat2Desc">Academic continuous report, widescreen slides, Slide-Printer handwritten handouts, and dense 2-column cheatsheets.</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-item-num" data-i18n="feat3Num">03</div>
+          <div class="feature-item-title" data-i18n="feat3Title">100% Private & In-Browser</div>
+          <div class="feature-item-desc" data-i18n="feat3Desc">Everything is processed locally in your browser memory. Zero files are uploaded to any remote server.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Workspace State (Appears when Notebook is loaded) -->
+    <section class="workspace-container hidden" id="workspace">
+
+      <!-- Multi-file Queue Strip -->
+      <div class="batch-bar" id="batchBar" style="display: none;">
+        <div class="batch-bar-header">
+          <span class="batch-badge" id="batchCountBadge">1</span>
+          <span class="batch-bar-title">Notebook Queue</span>
+        </div>
+        <div class="batch-tabs-track" id="batchTabsTrack">
+          <!-- Dynamically populated tabs -->
+        </div>
+        <div>
+          <button type="button" class="btn-primary-xs" id="exportBatchBtn" title="Download all notebooks in a ZIP archive">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+            <span data-i18n="batchDownload">Download Batch (ZIP)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- File Metadata Header Card -->
+      <div class="workspace-meta-bar">
+        <div>
+          <div class="file-name-text" id="metaFileName">analysis.ipynb</div>
+          <div class="file-pills">
+            <span class="pill" id="metaCellCount">0 celdas</span>
+            <span class="pill" id="metaCodeCount">0 código</span>
+            <span class="pill" id="metaImagesCount">0 gráficos</span>
+            <span class="pill" id="metaTablesCount">0 tablas</span>
+            <span class="pill pill-accent" id="metaSlidesCount">0 slides</span>
+          </div>
+        </div>
+        <div class="workspace-meta-actions">
+          <button type="button" class="btn-secondary-sm" id="addFilesHeaderBtn">+ Add Another Notebook</button>
+          <button type="button" class="btn-secondary-sm" id="replaceFileBtn">Change Notebook</button>
+        </div>
+      </div>
+
+      <!-- 2-Column Grid Layout -->
+      <div class="workspace-layout">
+
+        <!-- Controls Column -->
+        <aside class="controls-sidebar">
+
+          <!-- Section 01: Layout Architecture -->
+          <div class="card">
+            <div class="section-label">
+              <span data-i18n="sectionLayout">Layout Architecture</span>
+              <span class="section-label-sub">01</span>
+            </div>
+
+            <div class="layout-cards-grid">
+              <!-- Document Layout -->
+              <div class="layout-card active" data-layout="document" tabindex="0">
+                <div class="layout-card-header">
+                  <span class="layout-card-icon">📄</span>
+                  <span class="layout-card-badge">Report</span>
+                </div>
+                <div class="layout-card-title" data-i18n="layoutDocTitle">Document</div>
+                <div class="layout-card-desc" data-i18n="layoutDocDesc">Academic report with cover, TOC & running headers</div>
+              </div>
+
+              <!-- Slides Layout -->
+              <div class="layout-card" data-layout="slides" tabindex="0">
+                <div class="layout-card-header">
+                  <span class="layout-card-icon">🖥️</span>
+                  <span class="layout-card-badge">16:9</span>
+                </div>
+                <div class="layout-card-title" data-i18n="layoutSlidesTitle">Slides</div>
+                <div class="layout-card-desc" data-i18n="layoutSlidesDesc">16:9 widescreen presentation deck with category badges</div>
+              </div>
+
+              <!-- Handout Layout -->
+              <div class="layout-card" data-layout="handout" tabindex="0">
+                <div class="layout-card-header">
+                  <span class="layout-card-icon">📝</span>
+                  <span class="layout-card-badge">Slide-Printer</span>
+                </div>
+                <div class="layout-card-title" data-i18n="layoutHandoutTitle">Handout</div>
+                <div class="layout-card-desc" data-i18n="layoutHandoutDesc">Slide-Printer: top slide + bottom note-taking area</div>
+              </div>
+
+              <!-- Cheatsheet Layout -->
+              <div class="layout-card" data-layout="cheatsheet" tabindex="0">
+                <div class="layout-card-header">
+                  <span class="layout-card-icon">⚡</span>
+                  <span class="layout-card-badge">Dense</span>
+                </div>
+                <div class="layout-card-title" data-i18n="layoutCheatTitle">Cheatsheet</div>
+                <div class="layout-card-desc" data-i18n="layoutCheatDesc">Dense 2-column revision sheet to save paper</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 02: Design Theme & Typography -->
+          <div class="card">
+            <div class="section-label">
+              <span data-i18n="sectionTheme">Visual Theme</span>
+              <span class="section-label-sub">02</span>
+            </div>
+
+            <div class="theme-selector-grid">
+              <div class="theme-pill-btn active" data-theme="editorial">
+                <div class="theme-pill-swatch swatch-editorial">
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="theme-pill-title" data-i18n="themeEditorialTitle">Editorial</div>
+              </div>
+
+              <div class="theme-pill-btn" data-theme="mid-century">
+                <div class="theme-pill-swatch swatch-mcm">
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="theme-pill-title" data-i18n="themeMcmTitle">Mid-Century</div>
+              </div>
+
+              <div class="theme-pill-btn" data-theme="minimal">
+                <div class="theme-pill-swatch swatch-minimal">
+                  <span></span><span></span>
+                </div>
+                <div class="theme-pill-title" data-i18n="themeMinimalTitle">Minimal</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 03: Print Geometry & Paper Size -->
+          <div class="card">
+            <div class="section-label">
+              <span data-i18n="sectionGeometry">Print Geometry & Paper</span>
+              <span class="section-label-sub">03</span>
+            </div>
+
+            <!-- Paper Size -->
+            <div class="control-row">
+              <div class="control-label-group">
+                <span class="control-title" data-i18n="paperLabel">Paper Size</span>
+              </div>
+              <div class="segmented-control">
+                <button type="button" class="seg-btn active" data-paper="a4">A4</button>
+                <button type="button" class="seg-btn" data-paper="us-letter">Letter</button>
+                <button type="button" class="seg-btn" data-paper="a5">A5</button>
+              </div>
+            </div>
+
+            <!-- Binding Gutter -->
+            <div class="control-row">
+              <div class="control-label-group">
+                <span class="control-title" data-i18n="gutterLabel">Binding Margin</span>
+              </div>
+              <select id="gutterSelect" style="padding:0.35rem 0.6rem; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-surface-elevated); color:var(--text-primary); font-size:0.8rem;">
+                <option value="none" data-i18n="gutterNone">None</option>
+                <option value="binder" data-i18n="gutterBinder">Binder (+11mm)</option>
+                <option value="spiral" data-i18n="gutterSpiral">Spiral (+8mm)</option>
+              </select>
+            </div>
+
+            <!-- Duplex Support -->
+            <div class="control-row">
+              <div class="control-label-group">
+                <span class="control-title" data-i18n="duplexTitle">Duplex Printing</span>
+                <span class="control-subtitle" data-i18n="duplexSub">Alternates binding margin between odd & even pages</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="duplexSwitch">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <!-- Hole Punch Guides -->
+            <div class="control-row">
+              <div class="control-label-group">
+                <span class="control-title" data-i18n="holeTitle">Hole Punch Guides</span>
+                <span class="control-subtitle" data-i18n="holeSub">Subtle ISO 838 crosshairs on edge</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="holeGuidesSwitch">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section 04: Handout Notes Style (Active when Handout mode selected) -->
+          <div class="card hidden" id="handoutSettingsCard">
+            <div class="section-label">
+              <span data-i18n="sectionNotes">Handout Note Style</span>
+              <span class="section-label-sub">04</span>
+            </div>
+
+            <div class="control-row" style="padding-top:0;">
+              <span class="control-title">Layout Disposition</span>
+              <div class="segmented-control">
+                <button type="button" class="seg-btn active" data-handout-layout="1-up">1-Up</button>
+                <button type="button" class="seg-btn" data-handout-layout="2-up">2-Up Compact</button>
+              </div>
+            </div>
+
+            <div class="notes-style-grid">
+              <div class="note-style-card active" data-style="lines">
+                <div class="note-swatch swatch-lines"></div>
+                <span class="note-style-title" data-i18n="noteLinesTitle">Ruled Lines</span>
+              </div>
+              <div class="note-style-card" data-style="grid">
+                <div class="note-swatch swatch-grid"></div>
+                <span class="note-style-title" data-i18n="noteGridTitle">Graph Grid</span>
+              </div>
+              <div class="note-style-card" data-style="dots">
+                <div class="note-swatch swatch-dots"></div>
+                <span class="note-style-title" data-i18n="noteDotsTitle">Bullet Dots</span>
+              </div>
+              <div class="note-style-card" data-style="blank">
+                <div class="note-swatch swatch-blank"></div>
+                <span class="note-style-title" data-i18n="noteBlankTitle">Blank Space</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 05: Code & Ink Optimizations -->
+          <div class="card">
+            <div class="section-label">
+              <span data-i18n="sectionEco">Ink & Code Options</span>
+              <span class="section-label-sub">05</span>
+            </div>
+
+            <div class="control-row">
+              <div class="control-label-group">
+                <span class="control-title" data-i18n="ecoTitle">Eco / Ink-Saver Mode</span>
+                <span class="control-subtitle" data-i18n="ecoSub">Light syntax highlighting to save printer toner</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="ecoSwitch">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="control-row">
+              <div class="control-label-group">
+                <span class="control-title" data-i18n="showCodeTitle">Show Code Cells</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="showCodeSwitch" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section 06: CLI Command Generator -->
+          <div class="card">
+            <div class="section-label">
+              <span data-i18n="sectionCli">CLI Command Line</span>
+              <span class="section-label-sub">06</span>
+            </div>
+            <div class="cli-box">
+              <button type="button" class="cli-copy-btn" id="copyCliBtn" data-i18n="copyCliBtn">Copy</button>
+              <span class="cli-prompt">$</span><span id="cliSnippet">nbpress build analysis.ipynb</span>
+            </div>
+          </div>
+
+        </aside>
+
+        <!-- Right Column: Visual Sheet Preview & Code Studio -->
+        <main class="preview-column">
+
+          <!-- Tabs Header -->
+          <div class="preview-tabs-bar">
+            <div class="preview-tabs">
+              <button type="button" class="preview-tab-btn active" id="tabPreviewBtn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                <span data-i18n="tabPreview">Sheet Preview</span>
+              </button>
+              <button type="button" class="preview-tab-btn" id="tabOutlineBtn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                <span data-i18n="tabOutline">Cell Outline</span>
+              </button>
+              <button type="button" class="preview-tab-btn" id="tabTypstBtn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                <span data-i18n="tabTypst">Typst Source</span>
+              </button>
+            </div>
+
+            <!-- Preview Controls (Zoom & Navigation) -->
+            <div class="preview-controls">
+              <button type="button" class="preview-nav-btn" id="prevPageBtn" title="Previous Sheet">‹</button>
+              <span class="page-counter-text" id="pageCounterText">1 / 1</span>
+              <button type="button" class="preview-nav-btn" id="nextPageBtn" title="Next Sheet">›</button>
+              <span style="color:var(--border);">|</span>
+              <button type="button" class="preview-nav-btn" id="zoomOutBtn" title="Zoom Out">−</button>
+              <button type="button" class="preview-nav-btn" id="resetZoomBtn" title="Reset Zoom">100%</button>
+              <button type="button" class="preview-nav-btn" id="zoomInBtn" title="Zoom In">+</button>
+            </div>
+          </div>
+
+          <!-- View 1: Paper Canvas Viewport -->
+          <div class="preview-canvas-viewport" id="previewCanvasViewport">
+            <!-- Simulated paper sheet injected here -->
+          </div>
+
+          <!-- View 2: Cell Outline Viewport (Hidden by default) -->
+          <div class="hidden" id="outlineViewContainer">
+            <!-- Dynamic cell list -->
+          </div>
+
+          <!-- View 3: Typst Source Viewport (Hidden by default) -->
+          <div class="hidden" id="typstViewContainer">
+            <pre class="typst-source-wrap"><code id="typstSourceCode"></code></pre>
+          </div>
+
+          <!-- Sticky Action Toolbar -->
+          <div class="sticky-actions-bar">
+            <div class="action-status-pill">
+              Ready to print or compile with Typst
+            </div>
+            <div class="action-buttons-group">
+              <button type="button" class="btn-secondary-sm" id="downloadTypstBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span data-i18n="downloadTypstBtn">Download .typ</span>
+              </button>
+              <button type="button" class="btn-accent" id="printPdfBtn" title="Print directly or save as PDF via your browser">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                <span data-i18n="printBtn">Print / Save PDF</span>
+              </button>
+            </div>
+          </div>
+
+        </main>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Client-side Scripts -->
+  <script src="vendor/jszip.min.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/preview.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

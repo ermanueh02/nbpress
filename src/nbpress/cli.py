@@ -57,6 +57,61 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
+def launch_web_studio(port: int = 8000, host: str = "127.0.0.1", open_browser: bool = True) -> int:
+    """Iniciar el servidor web local para el estudio interactivo de nbpress."""
+    import http.server
+    import socketserver
+    import webbrowser
+    from functools import partial
+
+    pkg_web = Path(__file__).resolve().parent / "web"
+    repo_web = Path(__file__).resolve().parent.parent.parent / "web"
+    cwd_web = Path.cwd() / "web"
+
+    if pkg_web.is_dir():
+        web_dir = pkg_web
+    elif repo_web.is_dir():
+        web_dir = repo_web
+    elif cwd_web.is_dir():
+        web_dir = cwd_web
+    else:
+        console.print(
+            f"[bold red]Error: No se encontró el directorio del estudio web en:[/bold red]\n"
+            f"  - {pkg_web}\n  - {repo_web}\n  - {cwd_web}"
+        )
+        raise typer.Exit(1)
+
+    handler = partial(http.server.SimpleHTTPRequestHandler, directory=str(web_dir))
+    socketserver.TCPServer.allow_reuse_address = True
+    url = f"http://{host}:{port}"
+
+    console.print(
+        Panel(
+            f"[bold cyan]nbpress Web Studio[/bold cyan] · [link={url}]{url}[/link]\n\n"
+            f"[dim]100% Privado · En el Navegador · Cero subidas a la nube[/dim]\n"
+            f"[dim]Presiona [bold]Ctrl+C[/bold] para detener el servidor local.[/dim]",
+            title="📖 nbpress Web Studio",
+            border_style="cyan",
+            expand=False,
+        )
+    )
+
+    if open_browser:
+        webbrowser.open(url)
+
+    try:
+        with socketserver.TCPServer((host, port), handler) as httpd:
+            try:
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Servidor web detenido.[/yellow]")
+                return 0
+    except OSError as e:
+        console.print(f"[bold red]No se pudo enlazar al puerto {port}:[/bold red] {e}")
+        raise typer.Exit(1)
+    return 0
+
+
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
@@ -68,6 +123,16 @@ def main_callback(
         callback=version_callback,
         is_eager=True,
     ),
+    web: bool = typer.Option(
+        False,
+        "--web",
+        help="Iniciar el estudio web interactivo local en el navegador.",
+    ),
+    port: int = typer.Option(
+        8000,
+        "--port",
+        help="Puerto para el servidor web local (por defecto: 8000).",
+    ),
     wizard: bool = typer.Option(
         False,
         "--wizard",
@@ -78,12 +143,25 @@ def main_callback(
     """
     Transforma cuadernos Jupyter (.ipynb) en documentos y diapositivas de alta calidad editorial.
     """
+    if web:
+        return launch_web_studio(port=port)
+
     from nbpress.deps import ensure_slide_printer
     ensure_slide_printer(console)
 
     if ctx.invoked_subcommand is None:
         from nbpress.wizard import run_wizard
         run_wizard()
+
+
+@app.command(name="web")
+def web_cmd(
+    port: int = typer.Option(8000, "-p", "--port", help="Puerto para el servidor web local (por defecto: 8000)."),
+    host: str = typer.Option("127.0.0.1", "-h", "--host", help="Dirección host del servidor local."),
+    no_browser: bool = typer.Option(False, "--no-browser", help="No abrir automáticamente el navegador predeterminado."),
+):
+    """Iniciar el estudio web interactivo en el navegador."""
+    return launch_web_studio(port=port, host=host, open_browser=not no_browser)
 
 
 @app.command(name="wizard")
@@ -93,6 +171,7 @@ def wizard_cmd():
     ensure_slide_printer(console)
     from nbpress.wizard import run_wizard
     run_wizard()
+
 
 
 @app.command(name="version")
