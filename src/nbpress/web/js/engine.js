@@ -113,7 +113,7 @@
           cell.isSlideStarter = true;
         } else if (cell.type === 'markdown') {
           const firstLine = cell.source.trim().split('\n')[0] || '';
-          if (firstLine.startsWith('# ') || firstLine.startsWith('## ')) {
+          if (firstLine.startsWith('# ') || firstLine.startsWith('## ') || firstLine.startsWith('### ')) {
             cell.isSlideStarter = true;
           }
         }
@@ -539,17 +539,21 @@
               const strip = cellIdx === 0;
               const mdHtml = this.formatMathAndMarkdown(c.source, strip);
               if (mdHtml) bodyHtml += `<div style="margin-bottom:0.6rem;">${mdHtml}</div>`;
-            } else if (c.type === 'code' && config.showCode !== false) {
-              bodyHtml += `
-                <div class="sheet-code-block" style="margin-bottom:0.5rem;">
-                  ${c.source.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-                </div>
-              `;
+            } else if (c.type === 'code') {
+              if (config.showCode !== false) {
+                bodyHtml += `
+                  <div class="sheet-code-block" style="margin-bottom:0.5rem;">
+                    ${c.source.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+                  </div>
+                `;
+              }
               c.outputs.forEach(out => {
                 if (out.hasImage && out.images.length) {
                   out.images.forEach(img => {
-                    bodyHtml += `<div class="sheet-img-wrap" style="max-height:180px;"><img src="${img}" style="max-height:160px;" alt="Plot"></div>`;
+                    bodyHtml += `<div class="sheet-img-wrap" style="max-height:220px; text-align:center; margin:0.4rem 0;"><img src="${img}" style="max-height:200px; max-width:100%; object-fit:contain;" alt="Plot"></div>`;
                   });
+                } else if (out.hasTable && out.html) {
+                  bodyHtml += `<div style="overflow-x:auto; font-size:0.75rem; margin:0.4rem 0;">${out.html}</div>`;
                 }
               });
             }

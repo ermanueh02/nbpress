@@ -140,6 +140,10 @@ def process_stream_output(text: str, max_lines: int = 35) -> str:
     if not clean_text:
         return ""
 
+    # Suppress uninformative graphical object representations (e.g., <Axes: >, [<matplotlib.lines...>])
+    if re.match(r"^(<matplotlib\.[^>]+>|<Axes[^>]*>|\[<matplotlib\.[^>]+>\]|<Figure size [^>]+>)$", clean_text.strip()):
+        return ""
+
     lines = clean_text.splitlines()
     omitted_count = 0
     if len(lines) > max_lines:

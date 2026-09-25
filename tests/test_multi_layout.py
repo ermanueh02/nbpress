@@ -157,3 +157,29 @@ def test_cli_build_multiple_layouts(tmp_path: Path):
     assert (tmp_path / "slides_example_doc.pdf").exists()
     assert (tmp_path / "slides_example_slides.pdf").exists()
     assert (tmp_path / "slides_example_handout.pdf").exists()
+
+
+def test_slides_vertical_budgeting(tmp_path: Path):
+    """Test slides layout with vertical budgeting and heading levels."""
+    from pypdf import PdfReader
+    from nbpress.parser import load_notebook
+    from nbpress.generator import build_slides_list
+
+    nb_path = SAMPLES_DIR / "slides_example.ipynb"
+    nb = load_notebook(nb_path)
+    config = NbpressConfig(
+        layout=LayoutMode.SLIDES,
+        cover=True,
+    )
+    slides = build_slides_list(nb, assets_dir=tmp_path / "assets", config=config)
+    assert len(slides) >= 1
+    for slide in slides:
+        assert slide["title"] is not None
+
+    out_pdf = tmp_path / "slides_budget.pdf"
+    pdf_path, _ = generate_pdf(nb_path, out_pdf, config=config)
+    assert pdf_path.exists()
+    reader = PdfReader(pdf_path)
+    # Total pages should equal cover (1) + number of slides (no overflow or orphan pages)
+    assert len(reader.pages) == len(slides) + 1
+

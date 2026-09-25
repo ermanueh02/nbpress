@@ -83,7 +83,7 @@ class NotebookCell(BaseModel):
         """True if cell marks the beginning of a new slide or major section."""
         if self.slide_type in (SlideType.SLIDE, SlideType.SUBSLIDE):
             return True
-        if self.cell_type == CellType.MARKDOWN and self.heading_level in (1, 2):
+        if self.cell_type == CellType.MARKDOWN and self.heading_level in (1, 2, 3):
             return True
         return False
 

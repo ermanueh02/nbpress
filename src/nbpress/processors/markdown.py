@@ -193,7 +193,7 @@ def process_inline_markdown(text: str) -> str:
     return text
 
 
-def markdown_to_typst(source: str) -> str:
+def markdown_to_typst(source: str, strip_first_heading: bool = False) -> str:
     """
     Convert a Jupyter Markdown cell's text into Typst formatted markup.
     """
@@ -269,6 +269,10 @@ def markdown_to_typst(source: str) -> str:
         # Check for Headings
         heading_match = re.match(r"^(#{1,6})\s+(.+)$", line)
         if heading_match:
+            if strip_first_heading:
+                strip_first_heading = False
+                i += 1
+                continue
             level = len(heading_match.group(1))
             heading_text = heading_match.group(2).strip()
             heading_text = re.sub(r"\s+#+$", "", heading_text)

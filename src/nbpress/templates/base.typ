@@ -124,12 +124,18 @@
   path,
   caption: none,
   width: 92%,
+  max-height: none,
+  fit: "contain",
 ) = {
   align(center, block(
     breakable: false,
     inset: 4pt,
     [
-      #image(path, width: width)
+      #if max-height != none {
+        image(path, width: width, height: max-height, fit: fit)
+      } else {
+        image(path, width: width)
+      }
       #if caption != none [
         #v(3pt)
         #text(size: 8pt, fill: rgb("6c757d"), style: "italic")[#caption]

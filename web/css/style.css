@@ -1448,6 +1448,27 @@ input:checked + .slider:before {
   justify-content: space-between;
 }
 
+.paper-sheet.sheet-slides .sheet-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.paper-sheet.sheet-slides .sheet-body img {
+  max-width: 100%;
+  max-height: 270px;
+  object-fit: contain;
+  display: block;
+  margin: 0.4rem auto;
+}
+
+.paper-sheet.sheet-slides .sheet-body table {
+  font-size: 0.72rem;
+  max-width: 100%;
+}
+
 
 /* Handout Mode Presentation Slide Card */
 .handout-slide-box {

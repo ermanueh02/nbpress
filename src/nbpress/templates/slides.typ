@@ -3,6 +3,52 @@
 
 #let colors = get-theme-colors(theme-name: "{{ theme }}", eco: {{ 'true' if eco else 'false' }})
 
+#let nb-image(
+  path,
+  caption: none,
+  width: 100%,
+  max-height: 8.2cm,
+  fit: "contain",
+) = {
+  align(center + horizon, block(
+    breakable: false,
+    inset: 2pt,
+    [
+      #image(path, width: width, height: max-height, fit: fit)
+      #if caption != none [
+        #v(2pt)
+        #text(size: 8pt, fill: rgb("6c757d"), style: "italic")[#caption]
+      ]
+    ]
+  ))
+}
+
+#let nb-table(
+  columns: 2,
+  eco: false,
+  theme: "{{ theme }}",
+  ..cells
+) = {
+  let colors = get-theme-colors(theme-name: theme, eco: eco)
+  let header-bg = if eco { rgb("ffffff") } else if theme == "mid-century" { rgb("f2ebe0") } else { rgb("f1f3f5") }
+  let even-bg = if eco { rgb("ffffff") } else if theme == "mid-century" { rgb("fbf9f4") } else { rgb("fafbfc") }
+  let border = if eco { 0.7pt + rgb("000000") } else { 0.5pt + colors.border }
+
+  align(center, block(
+    breakable: false,
+    text(size: 8pt)[
+      #table(
+        columns: columns,
+        stroke: (col, row) => if row == 0 { (bottom: 1.5pt + colors.primary) } else { border },
+        fill: (col, row) => if row == 0 { header-bg } else if calc.even(row) { even-bg } else { none },
+        inset: (x: 4pt, y: 3pt),
+        align: (col, row) => if row == 0 { center + horizon } else { left + horizon },
+        ..cells
+      )
+    ]
+  ))
+}
+
 #set page(
   paper: "presentation-16-9",
   fill: colors.bg-page,
